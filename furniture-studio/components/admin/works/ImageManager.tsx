@@ -54,7 +54,9 @@ export function ImageManager({ workId, images, coverImageId }: ImageManagerProps
     if (targetIndex < 0 || targetIndex >= images.length) return;
     const reordered = [...images];
     [reordered[index], reordered[targetIndex]] = [reordered[targetIndex], reordered[index]];
-    startReorder(() => reorderWorkImages(workId, reordered.map((img) => img.id)));
+    startReorder(async () => {
+      await reorderWorkImages(workId, reordered.map((img) => img.id));
+    });
   }
 
   return (
