@@ -5,7 +5,7 @@ import { getSiteSettings } from '@/lib/queries/site';
 import { siteAssetUrl } from '@/lib/utils/image';
 
 const fraunces = Fraunces({
-  subsets: ['latin', 'cyrillic'],
+  subsets: ['latin'],
   variable: '--font-display',
   weight: ['400', '500', '600'],
   style: ['normal', 'italic'],
