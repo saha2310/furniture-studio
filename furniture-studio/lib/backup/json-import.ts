@@ -105,7 +105,11 @@ function hasOwn<T extends object>(object: T, key: PropertyKey): boolean {
 }
 
 function compactUpdate<T extends Record<string, unknown>>(source: T, allowed: readonly string[]) {
-  return Object.fromEntries(allowed.filter((key) => hasOwn(source, key)).map((key) => [key, source[key]]));
+  return Object.fromEntries(
+    allowed
+      .filter((key) => hasOwn(source, key))
+      .map((key): [string, unknown] => [key, source[key]]),
+  );
 }
 
 function emptySummary(): JsonImportSummary {
