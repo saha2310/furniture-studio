@@ -24,7 +24,7 @@ export function MobileNav({ links }: { links: { id: string; href: string; label:
           aria-controls="mobile-nav-panel"
           aria-label={open ? 'Закрыть меню' : 'Открыть меню'}
           onClick={() => setOpen((v) => !v)}
-          className="mobile-menu-toggle relative z-[10000] flex h-10 w-10 items-center justify-center md:hidden"
+          className="mobile-menu-toggle liquid-glass-icon-button liquid-glass-icon-button-sm relative z-[10000] flex items-center justify-center md:hidden"
         >
           <span className="relative block h-4 w-6">
             <span className={`mobile-menu-toggle-line absolute left-0 top-0 h-px w-6 transition-transform duration-300 ${open ? 'translate-y-[7px] rotate-45' : ''}`} />
