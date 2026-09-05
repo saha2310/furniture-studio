@@ -1,0 +1,858 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+
+  /* Тёмная тема — значения по умолчанию, у всех при первом заходе.
+     Формат "R G B" (без запятых/rgb()) — так работает rgb(var(...) / <alpha-value>)
+     в tailwind.config.ts, это даёт bg-canvas/50 и т.п. с переключаемым цветом. */
+  --color-canvas: 21 21 20;
+  --color-surface: 29 29 27;
+  --color-ink: 232 225 216;
+  --color-walnut: 200 191 181;
+  --color-walnut-dark: 240 234 226;
+  --color-stone: 138 132 125;
+  --color-espresso: 194 187 179;
+
+  /* "Стеклянные" кнопки/навигация (reference-button, liquid-glass-*,
+     mobile-bottom-nav) держат один и тот же рецепт (блюр + блик + база),
+     только с разными базовыми цветами по теме — см. использование ниже. */
+  --glass-shine: 255 255 255; /* блик на стекле */
+  --glass-base: 14 14 13; /* тёмная подложка под блюром */
+  --glass-text: 239 239 235;
+  --glass-text-strong: 248 248 244;
+  --glass-border: 238 238 232;
+
+  /* Заглушка-градиент для hero/about/contacts, когда фото ещё не загружено. */
+  --fallback-gradient-1: 71 65 58;
+  --fallback-gradient-2: 33 31 28;
+  --fallback-gradient-3: 17 17 16;
+
+  /* "Туман" — тёмная плашка/градиент ПОВЕРХ ФОТОГРАФИЙ на главной и на
+     странице товара (нужна для читаемости текста поверх снимка). В тёмной
+     теме — обычный чёрный, как и было. В light mode значение также остаётся
+     нейтрально-чёрным: цветной дымки поверх фотографий больше нет. */
+  --photo-mist: 0 0 0;
+}
+
+/* Светлая тема — включается вручную кнопкой (components/theme/ThemeToggle.tsx),
+   по умолчанию никому не показывается. Текст и вся обычная "мебель" интерфейса
+   в светлой теме — нейтрально-чёрные; фотографии не получают цветного
+   тонирования. */
+[data-theme='light'] {
+  color-scheme: light;
+
+  --color-canvas: 244 242 236;
+  --color-surface: 232 230 224;
+  --color-ink: 24 24 22;
+  --color-walnut: 92 86 76;
+  --color-walnut-dark: 58 53 45;
+  --color-stone: 120 114 105;
+  --color-espresso: 54 50 44;
+
+  /* Стеклянные кнопки в светлой теме — по просьбе заказчика ярче: белая
+     (не в цвет страницы) подложка, тёмная контрастная обводка и тёмный
+     блик — иначе на светлом фоне кнопка выглядит почти невидимой. */
+  --glass-shine: 24 24 22;
+  --glass-base: 255 255 255;
+  --glass-text: 24 24 22;
+  --glass-text-strong: 12 12 11;
+  --glass-border: 24 24 22;
+
+  /* Заглушка-градиент для hero/about/contacts, когда фото ещё не загружено. */
+  --fallback-gradient-1: 226 224 216;
+  --fallback-gradient-2: 208 206 196;
+  --fallback-gradient-3: 244 242 236;
+
+  /* Фотографии в светлой теме не тонируем зелёным: затемнение остаётся
+     нейтрально-чёрным, чтобы снимки выглядели так же естественно, как в
+     тёмной теме. */
+  --photo-mist: 0 0 0;
+}
+
+html {
+  background: rgb(var(--color-canvas));
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-canvas text-ink font-sans antialiased;
+  font-weight: 400;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  @apply font-sans font-normal;
+}
+
+::selection {
+  background: rgba(var(--color-ink) / 0.18);
+  color: rgb(var(--color-ink));
+}
+
+button,
+a,
+input,
+textarea,
+select {
+  -webkit-tap-highlight-color: transparent;
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible {
+  outline: 1px solid rgb(var(--color-ink));
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/*
+ * Фото остаются визуально тёмными даже в light mode. Если поверх такого
+ * изображения находится текст, ему нужен отдельный светлый контекст:
+ * обычные --color-ink светлой темы здесь намеренно не используются.
+ */
+[data-theme='light'] .light-image-content {
+  --image-ink: 248 247 243;
+  --image-muted: 232 230 224;
+  --glass-shine: 255 255 255;
+  --glass-base: 255 255 255;
+  --glass-text: 255 255 255;
+  --glass-text-strong: 255 255 255;
+  --glass-border: 255 255 255;
+  color: rgb(var(--image-ink));
+}
+
+/* Любой текст внутри блока поверх фотографии остаётся светлым в light mode.
+   Не меняем саму фотографию и не добавляем цветную/белую дымку. */
+[data-theme='light'] .light-image-content :where(h1, h2, h3, h4, h5, h6, p, span, a) {
+  color: rgb(var(--image-ink)) !important;
+}
+
+[data-theme='light'] .light-image-content [class*='text-stone'],
+[data-theme='light'] .light-image-content [class*='text-espresso'] {
+  color: rgb(var(--image-muted)) !important;
+}
+
+[data-theme='light'] .light-image-content [class*='border-ink'] {
+  border-color: rgba(var(--image-ink) / 0.28) !important;
+}
+
+[data-theme='light'] .light-image-content [class*='bg-ink'] {
+  background-color: rgba(var(--image-ink) / 0.28) !important;
+}
+
+/* На главной шапка лежит непосредственно поверх фотографии. */
+[data-theme='light'] body:has(.photo-hero) header {
+  color: rgb(var(--image-ink));
+  --image-ink: 248 247 243;
+  --glass-shine: 255 255 255;
+  --glass-base: 255 255 255;
+  --glass-text: 255 255 255;
+  --glass-text-strong: 255 255 255;
+  --glass-border: 255 255 255;
+}
+
+[data-theme='light'] body:has(.photo-hero) header .text-ink,
+[data-theme='light'] body:has(.photo-hero) header [class*='text-ink/'] {
+  color: rgb(var(--image-ink)) !important;
+}
+
+[data-theme='light'] body:has(.photo-hero) header [class*='border-ink'] {
+  border-color: rgba(var(--image-ink) / 0.22) !important;
+}
+
+/* Логотип — редактируемый ассет из админки. Не перекрашиваем его темой. */
+
+@layer utilities {
+  .container-studio {
+    @apply mx-auto w-full max-w-[1440px] px-6 sm:px-8 lg:px-10;
+  }
+
+  .eyebrow {
+    @apply text-[10px] uppercase tracking-[0.22em] text-stone;
+  }
+
+  .hairline {
+    @apply h-px bg-ink/10;
+  }
+
+  .editorial-title {
+    font-size: clamp(3.2rem, 8vw, 7.75rem);
+    line-height: 0.92;
+    letter-spacing: -0.045em;
+  }
+
+  .display-title {
+    font-size: clamp(2.6rem, 5vw, 5.8rem);
+    line-height: 0.96;
+    letter-spacing: -0.04em;
+  }
+
+  .create-card {
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.18);
+  }
+
+  [data-theme='light'] .create-card {
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.20);
+  }
+
+  /* Dark smoked architectural glass used only on existing button geometries. */
+  .reference-button,
+  .liquid-glass-button,
+  .liquid-glass-filter-button,
+  .liquid-glass-icon-button {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    @apply inline-flex items-center;
+    gap: 1.75rem;
+    min-height: 3.25rem;
+    padding: 0.8rem 1.4rem;
+    border: 1px solid rgba(var(--glass-border) / 0.17) !important;
+    border-radius: 999px !important;
+    background:
+      linear-gradient(115deg, rgba(var(--glass-shine) / 0.055), rgba(var(--glass-shine) / 0.012) 48%, rgba(var(--glass-shine) / 0.035)) ,
+      rgba(var(--glass-base) / 0.34) !important;
+    color: rgba(var(--glass-text) / 0.78) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(var(--glass-shine) / 0.095),
+      inset 0 -1px 0 rgba(var(--glass-shine) / 0.025),
+      0 8px 24px rgba(0, 0, 0, 0.11);
+    -webkit-backdrop-filter: blur(12px) saturate(108%);
+    backdrop-filter: blur(12px) saturate(108%);
+    transition:
+      background-color 650ms cubic-bezier(0.22, 1, 0.36, 1),
+      border-color 650ms cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 650ms cubic-bezier(0.22, 1, 0.36, 1),
+      color 450ms ease,
+      -webkit-backdrop-filter 650ms cubic-bezier(0.22, 1, 0.36, 1),
+      backdrop-filter 650ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .reference-button > *,
+  .liquid-glass-button > *,
+  .liquid-glass-filter-button > *,
+  .liquid-glass-icon-button > *,
+  .liquid-glass-social > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .reference-button::before,
+  .liquid-glass-button::before,
+  .liquid-glass-filter-button::before,
+  .liquid-glass-icon-button::before {
+    content: '';
+    position: absolute;
+    inset: -65% auto -65% -28%;
+    z-index: 0;
+    width: 30%;
+    transform: translate3d(-220%, 0, 0) rotate(13deg);
+    background: linear-gradient(
+      100deg,
+      transparent 0%,
+      rgba(var(--glass-shine) / 0.025) 36%,
+      rgba(var(--glass-shine) / 0.16) 49%,
+      rgba(var(--glass-shine) / 0.025) 62%,
+      transparent 100%
+    );
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 1100ms cubic-bezier(0.22, 1, 0.36, 1), opacity 800ms ease;
+  }
+
+  .reference-button::after,
+  .liquid-glass-button::after,
+  .liquid-glass-filter-button::after,
+  .liquid-glass-icon-button::after {
+    content: '';
+    position: absolute;
+    inset: 1px;
+    z-index: 0;
+    border: 1px solid rgba(var(--glass-shine) / 0.025);
+    box-shadow: inset 0 1px 7px rgba(var(--glass-shine) / 0.025);
+    pointer-events: none;
+  }
+
+  .reference-button:hover,
+  .liquid-glass-button:hover,
+  .liquid-glass-filter-button:hover,
+  .liquid-glass-icon-button:hover {
+    border-color: rgba(var(--glass-border) / 0.33) !important;
+    background:
+      linear-gradient(115deg, rgba(var(--glass-shine) / 0.085), rgba(var(--glass-shine) / 0.022) 48%, rgba(var(--glass-shine) / 0.06)),
+      rgba(var(--glass-base) / 0.30) !important;
+    color: rgba(var(--glass-text-strong) / 0.9) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(var(--glass-shine) / 0.14),
+      inset 0 -1px 0 rgba(var(--glass-shine) / 0.035),
+      0 10px 28px rgba(0, 0, 0, 0.14);
+    -webkit-backdrop-filter: blur(14px) saturate(110%);
+    backdrop-filter: blur(14px) saturate(110%);
+  }
+
+  .reference-button:hover::before,
+  .liquid-glass-button:hover::before,
+  .liquid-glass-filter-button:hover::before,
+  .liquid-glass-icon-button:hover::before {
+    transform: translate3d(430%, 0, 0) rotate(13deg);
+    opacity: 0.45;
+  }
+
+
+  .liquid-glass-icon-button {
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+    padding: 0;
+    gap: 0;
+    justify-content: center;
+    border-radius: 50% !important;
+  }
+
+  .liquid-glass-icon-button-sm {
+    width: 42px;
+    height: 42px;
+    min-height: 42px;
+  }
+
+  .liquid-glass-icon-button .favorite-heart {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.15rem;
+    line-height: 1;
+    transform: translateZ(0);
+    transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1), color 220ms ease;
+  }
+
+  .liquid-glass-icon-button[aria-pressed="true"] {
+    border-color: rgba(var(--glass-border) / 0.3) !important;
+    background:
+      linear-gradient(115deg, rgba(var(--glass-shine) / 0.075), rgba(var(--glass-shine) / 0.018) 48%, rgba(var(--glass-shine) / 0.045)),
+      rgba(var(--glass-base) / 0.34) !important;
+    color: rgba(var(--glass-text-strong) / 0.94) !important;
+  }
+
+  .liquid-glass-icon-button[aria-pressed="true"] .favorite-heart {
+    transform: scale(1.08);
+  }
+
+  .favorite-header-button {
+    gap: 0.65rem;
+    min-height: 3rem;
+    padding: 0.65rem 1rem;
+  }
+
+  .favorite-header-button .favorite-heart {
+    font-size: 1.05rem;
+    line-height: 1;
+  }
+
+  @media (max-width: 767px) {
+    .favorite-header-button {
+      width: 42px;
+      height: 42px;
+      min-height: 42px;
+      padding: 0;
+      gap: 0;
+      justify-content: center;
+    }
+
+    .favorite-header-label {
+      display: none;
+    }
+  }
+
+  .liquid-glass-filter-button {
+    gap: 0;
+    border-color: rgba(var(--glass-border) / 0.14) !important;
+    background:
+      linear-gradient(115deg, rgba(var(--glass-shine) / 0.035), rgba(var(--glass-shine) / 0.006) 48%, rgba(var(--glass-shine) / 0.02)),
+      rgba(var(--glass-base) / 0.2) !important;
+    color: rgba(var(--glass-text) / 0.82) !important;
+    -webkit-backdrop-filter: blur(8px) saturate(104%);
+    backdrop-filter: blur(8px) saturate(104%);
+  }
+
+  .liquid-glass-filter-button:hover {
+    border-color: rgba(var(--glass-border) / 0.27) !important;
+    background:
+      linear-gradient(115deg, rgba(var(--glass-shine) / 0.06), rgba(var(--glass-shine) / 0.014) 48%, rgba(var(--glass-shine) / 0.035)),
+      rgba(var(--glass-base) / 0.18) !important;
+    color: rgba(var(--glass-text-strong) / 0.92) !important;
+    -webkit-backdrop-filter: blur(10px) saturate(106%);
+    backdrop-filter: blur(10px) saturate(106%);
+  }
+
+  .liquid-glass-filter-button.is-active {
+    border-color: rgba(var(--glass-border) / 0.26) !important;
+    background:
+      linear-gradient(115deg, rgba(var(--glass-shine) / 0.075), rgba(var(--glass-shine) / 0.018) 50%, rgba(var(--glass-shine) / 0.045)),
+      rgba(var(--glass-base) / 0.3) !important;
+    color: rgba(var(--glass-text) / 0.92) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(var(--glass-shine) / 0.12),
+      inset 0 -1px 0 rgba(var(--glass-shine) / 0.025),
+      0 6px 18px rgba(0, 0, 0, 0.08);
+  }
+
+  .about-teaser-button {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid rgba(var(--glass-border) / 0.23);
+    border-radius: 999px;
+    min-height: 3.1rem;
+    padding: 0.8rem 1.35rem;
+    gap: 1rem;
+    background:
+      linear-gradient(115deg, rgba(var(--glass-shine) / 0.075), rgba(var(--glass-shine) / 0.018) 48%, rgba(var(--glass-shine) / 0.045)),
+      rgba(var(--glass-base) / 0.32) !important;
+    border-color: rgba(var(--glass-border) / 0.23) !important;
+    color: rgba(var(--glass-text) / 0.88) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(var(--glass-shine) / 0.11),
+      inset 0 -1px 0 rgba(var(--glass-shine) / 0.025),
+      0 5px 18px rgba(0, 0, 0, 0.08);
+    -webkit-backdrop-filter: blur(9px) saturate(106%);
+    backdrop-filter: blur(9px) saturate(106%);
+  }
+
+  .about-teaser-button::before {
+    content: '';
+    position: absolute;
+    inset: -65% auto -65% -30%;
+    z-index: 0;
+    width: 30%;
+    transform: translate3d(-220%, 0, 0) rotate(13deg);
+    background: linear-gradient(100deg, transparent 0%, rgba(var(--glass-shine) / .02) 36%, rgba(var(--glass-shine) / .14) 49%, rgba(var(--glass-shine) / .02) 62%, transparent 100%);
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 1100ms cubic-bezier(0.22,1,0.36,1), opacity 800ms ease;
+  }
+
+  .about-teaser-button > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .about-teaser-button:hover {
+    border-color: rgba(var(--glass-border) / 0.34) !important;
+    background:
+      linear-gradient(115deg, rgba(var(--glass-shine) / 0.095), rgba(var(--glass-shine) / 0.026) 48%, rgba(var(--glass-shine) / 0.055)),
+      rgba(var(--glass-base) / 0.3) !important;
+    color: rgba(var(--glass-text-strong) / 0.94) !important;
+    -webkit-backdrop-filter: blur(11px) saturate(109%);
+    backdrop-filter: blur(11px) saturate(109%);
+  }
+
+  .about-teaser-button:hover::before {
+    transform: translate3d(430%, 0, 0) rotate(13deg);
+    opacity: 0.32;
+  }
+
+  .liquid-glass-on-image {
+    background:
+      linear-gradient(115deg, rgba(var(--glass-shine) / 0.045), rgba(var(--glass-shine) / 0.01) 50%, rgba(var(--glass-shine) / 0.03)),
+      rgba(var(--glass-base) / 0.28) !important;
+    -webkit-backdrop-filter: blur(11px) saturate(105%);
+    backdrop-filter: blur(11px) saturate(105%);
+  }
+
+  .liquid-glass-on-dark {
+    background:
+      linear-gradient(115deg, rgba(var(--glass-shine) / 0.045), rgba(var(--glass-shine) / 0.008) 50%, rgba(var(--glass-shine) / 0.028)),
+      rgba(var(--glass-base) / 0.32) !important;
+    -webkit-backdrop-filter: blur(10px) saturate(105%);
+    backdrop-filter: blur(10px) saturate(105%);
+  }
+
+  .liquid-glass-social {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 3rem;
+    padding: 0.7rem;
+    border: 1px solid rgba(var(--glass-border) / 0.15);
+    background:
+      linear-gradient(115deg, rgba(var(--glass-shine) / 0.042), rgba(var(--glass-shine) / 0.008) 50%, rgba(var(--glass-shine) / 0.028)),
+      rgba(var(--glass-base) / 0.32);
+    color: rgba(var(--glass-text) / 0.76);
+    border-radius: 999px;
+    box-shadow: inset 0 1px 0 rgba(var(--glass-shine) / 0.085);
+    -webkit-backdrop-filter: blur(11px) saturate(105%);
+    backdrop-filter: blur(11px) saturate(105%);
+    transition: background-color 600ms cubic-bezier(0.22, 1, 0.36, 1), border-color 600ms cubic-bezier(0.22, 1, 0.36, 1), color 450ms ease, box-shadow 600ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .liquid-glass-social::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(108deg, transparent 18%, rgba(var(--glass-shine) / 0.09) 50%, transparent 82%);
+    opacity: 0;
+    transform: translateX(-46%);
+    pointer-events: none;
+    transition: opacity 700ms ease, transform 900ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .liquid-glass-social:hover {
+    border-color: rgba(var(--glass-border) / 0.3);
+    background:
+      linear-gradient(115deg, rgba(var(--glass-shine) / 0.068), rgba(var(--glass-shine) / 0.018) 50%, rgba(var(--glass-shine) / 0.048)),
+      rgba(var(--glass-base) / 0.29);
+    color: rgba(var(--glass-text-strong) / 0.9);
+    box-shadow: inset 0 1px 0 rgba(var(--glass-shine) / 0.12), 0 8px 20px rgba(0, 0, 0, 0.09);
+    -webkit-backdrop-filter: blur(13px) saturate(108%);
+    backdrop-filter: blur(13px) saturate(108%);
+  }
+
+  .liquid-glass-social:hover::before {
+    opacity: 0.7;
+    transform: translateX(46%);
+  }
+}
+
+@layer utilities {
+  .mobile-bottom-nav {
+    display: none;
+  }
+
+  @media (max-width: 767px) {
+    .mobile-bottom-nav {
+      position: fixed;
+      left: 12px;
+      right: 12px;
+      bottom: calc(12px + env(safe-area-inset-bottom));
+      z-index: 90;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      min-height: 60px;
+      padding: 6px;
+      border: 1px solid rgba(var(--glass-border) / 0.17);
+      border-radius: 999px;
+      background:
+        linear-gradient(115deg, rgba(var(--glass-shine) / 0.055), rgba(var(--glass-shine) / 0.012) 48%, rgba(var(--glass-shine) / 0.035)),
+        rgba(var(--glass-base) / 0.34);
+      color: rgba(var(--glass-text) / 0.72);
+      box-shadow:
+        inset 0 1px 0 rgba(var(--glass-shine) / 0.095),
+        inset 0 -1px 0 rgba(var(--glass-shine) / 0.025),
+        0 10px 28px rgba(0, 0, 0, 0.16);
+      -webkit-backdrop-filter: blur(14px) saturate(108%);
+      backdrop-filter: blur(14px) saturate(108%);
+    }
+
+    .mobile-bottom-nav-item {
+      position: relative;
+      min-width: 0;
+      min-height: 48px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      border-radius: 999px;
+      padding: 3px 5px;
+      font-size: 9px;
+      line-height: 1.1;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: rgba(var(--glass-text) / 0.58);
+      transition: color 220ms ease, background-color 220ms ease, box-shadow 220ms ease;
+    }
+
+    .mobile-bottom-nav-item.is-active {
+      color: rgba(var(--glass-text-strong) / 0.96);
+      background: rgba(var(--glass-shine) / 0.045);
+      box-shadow: inset 0 1px 0 rgba(var(--glass-shine) / 0.05);
+    }
+
+    .mobile-bottom-nav-icon-wrap {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 23px;
+    }
+
+    .mobile-bottom-nav-count {
+      position: absolute;
+      top: -6px;
+      right: -10px;
+      min-width: 13px;
+      height: 13px;
+      padding: 0 3px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(var(--glass-border) / 0.22);
+      border-radius: 999px;
+      background: rgba(var(--glass-base) / 0.74);
+      font-size: 7px;
+      line-height: 1;
+      letter-spacing: 0;
+      color: rgba(var(--glass-text-strong) / 0.82);
+      -webkit-backdrop-filter: blur(8px);
+      backdrop-filter: blur(8px);
+    }
+
+    .mobile-bottom-nav + * {
+      scroll-margin-bottom: 6rem;
+    }
+  }
+}
+
+
+/* Light mode: мобильная панель должна читаться как светлое стекло,
+   а не теряться на фотографиях/контенте. */
+[data-theme='light'] .mobile-bottom-nav {
+  border-color: rgba(24, 24, 22, 0.14);
+  background:
+    linear-gradient(115deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.07) 48%, rgba(255, 255, 255, 0.16)),
+    rgba(255, 255, 255, 0.13);
+  color: rgba(24, 24, 22, 0.86);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.96),
+    inset 0 -1px 0 rgba(24, 24, 22, 0.05),
+    0 12px 32px rgba(0, 0, 0, 0.16);
+  -webkit-backdrop-filter: blur(16px) saturate(112%);
+  backdrop-filter: blur(16px) saturate(112%);
+}
+
+[data-theme='light'] .mobile-bottom-nav-item {
+  color: rgba(24, 24, 22, 0.62);
+}
+
+[data-theme='light'] .mobile-bottom-nav-item.is-active {
+  color: rgba(12, 12, 11, 0.96);
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.52),
+    0 3px 12px rgba(0, 0, 0, 0.07);
+}
+
+[data-theme='light'] .mobile-bottom-nav-count {
+  border-color: rgba(24, 24, 22, 0.14);
+  background: rgba(255, 255, 255, 0.92);
+  color: rgba(12, 12, 11, 0.88);
+}
+
+/* Mobile header/menu: use explicit contextual colors instead of mix-blend-mode.
+   Difference blending is unreliable once glass/backdrop-filter creates a new
+   compositing layer. The header and menu therefore switch between two clean
+   optical states: light controls over photography, dark controls over canvas. */
+@media (max-width: 767px) {
+  .mobile-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .mobile-header-theme-toggle {
+    position: relative;
+    z-index: 10000;
+  }
+
+  .mobile-menu-toggle {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    color: rgb(var(--color-ink)) !important;
+  }
+
+  .mobile-menu-toggle-line {
+    display: block;
+    background: currentColor;
+    transform-origin: center;
+  }
+
+  .mobile-menu-toggle .mobile-menu-toggle-line {
+    z-index: 2;
+  }
+
+  .mobile-nav-panel {
+    background: rgba(var(--color-canvas) / 0.94);
+    -webkit-backdrop-filter: blur(22px) saturate(115%);
+    backdrop-filter: blur(22px) saturate(115%);
+  }
+
+  .mobile-nav-item {
+    color: rgb(var(--color-ink));
+  }
+}
+
+/* On the homepage the menu sits over the same photograph as the hero.
+   Keep the photo visible through a dark smoked-glass layer and use light text. */
+@media (max-width: 767px) {
+  [data-theme='light'] body:has(.photo-hero) .mobile-nav-panel,
+  [data-theme='dark'] body:has(.photo-hero) .mobile-nav-panel {
+    background:
+      linear-gradient(115deg, rgba(0, 0, 0, 0.52), rgba(0, 0, 0, 0.38) 48%, rgba(0, 0, 0, 0.48)),
+      rgba(10, 10, 9, 0.38);
+    -webkit-backdrop-filter: blur(18px) saturate(112%);
+    backdrop-filter: blur(18px) saturate(112%);
+  }
+
+  body:has(.photo-hero) .mobile-nav-item {
+    color: rgba(255, 255, 255, 0.94);
+    border-color: rgba(255, 255, 255, 0.18);
+  }
+
+  body:has(.photo-hero) .mobile-nav-item > span:last-child {
+    color: rgba(255, 255, 255, 0.58);
+  }
+
+  body:has(.photo-hero) .mobile-nav-panel .reference-button {
+    --glass-shine: 255 255 255;
+    --glass-base: 255 255 255;
+    --glass-text: 255 255 255;
+    --glass-text-strong: 255 255 255;
+    --glass-border: 255 255 255;
+    background:
+      linear-gradient(115deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.055) 48%, rgba(255, 255, 255, 0.11)),
+      rgba(255, 255, 255, 0.10) !important;
+    color: rgba(255, 255, 255, 0.9) !important;
+    border-color: rgba(255, 255, 255, 0.24) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.20),
+      0 10px 28px rgba(0, 0, 0, 0.18);
+  }
+
+  /* Both theme states need the same contrast on top of the homepage photo. */
+  body:has(.photo-hero) .mobile-menu-toggle {
+    color: #fff !important;
+  }
+}
+
+/* The bottom navigation should remain translucent and airy in light mode,
+   matching the other glass controls instead of becoming a solid white pill. */
+@media (max-width: 767px) {
+  [data-theme='light'] .mobile-bottom-nav {
+    border-color: rgba(24, 24, 22, 0.16);
+    background:
+      linear-gradient(115deg,
+        rgba(255, 255, 255, 0.24),
+        rgba(255, 255, 255, 0.08) 48%,
+        rgba(255, 255, 255, 0.18)),
+      rgba(255, 255, 255, 0.16);
+    color: rgba(24, 24, 22, 0.78);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.55),
+      inset 0 -1px 0 rgba(24, 24, 22, 0.035),
+      0 10px 28px rgba(0, 0, 0, 0.12);
+    -webkit-backdrop-filter: blur(14px) saturate(110%);
+    backdrop-filter: blur(14px) saturate(110%);
+  }
+
+  [data-theme='light'] .mobile-bottom-nav-item {
+    color: rgba(24, 24, 22, 0.64);
+  }
+
+  [data-theme='light'] .mobile-bottom-nav-item.is-active {
+    color: rgba(12, 12, 11, 0.92);
+    background: rgba(255, 255, 255, 0.18);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.52),
+      0 2px 10px rgba(0, 0, 0, 0.05);
+  }
+
+  [data-theme='light'] .mobile-bottom-nav-count {
+    border-color: rgba(24, 24, 22, 0.16);
+    background: rgba(255, 255, 255, 0.30);
+    color: rgba(12, 12, 11, 0.86);
+  }
+}
+
+/* Small-screen admin image help control: keep a real touch target and prevent
+   the icon from collapsing inside a flex row. */
+@media (max-width: 639px) {
+  .admin-image-help-button {
+    flex: 0 0 auto;
+  }
+}
+
+/* Final mobile glass overrides. Keep the navigation visually related to the
+   header glass controls in light mode instead of turning it into a white slab. */
+@media (max-width: 767px) {
+  [data-theme='light'] .mobile-bottom-nav {
+    border: 1px solid rgba(24, 24, 22, 0.14);
+    background:
+      linear-gradient(115deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.07) 48%, rgba(255, 255, 255, 0.16)),
+      rgba(255, 255, 255, 0.13);
+    color: rgba(24, 24, 22, 0.78);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.55),
+      inset 0 -1px 0 rgba(24, 24, 22, 0.035),
+      0 10px 28px rgba(0, 0, 0, 0.12);
+    -webkit-backdrop-filter: blur(14px) saturate(110%);
+    backdrop-filter: blur(14px) saturate(110%);
+  }
+
+  [data-theme='light'] .mobile-bottom-nav-item {
+    color: rgba(24, 24, 22, 0.64);
+    background: transparent;
+  }
+
+  [data-theme='light'] .mobile-bottom-nav-item.is-active {
+    color: rgba(12, 12, 11, 0.92);
+    background: rgba(255, 255, 255, 0.18);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.52),
+      0 2px 10px rgba(0, 0, 0, 0.05);
+  }
+
+  [data-theme='light'] .mobile-bottom-nav-count {
+    border-color: rgba(24, 24, 22, 0.16);
+    background: rgba(255, 255, 255, 0.30);
+    color: rgba(12, 12, 11, 0.86);
+  }
+
+  /* On the homepage the bottom nav also sits over a photo; preserve the
+     smoked-glass appearance so it does not read as a white sticker. */
+  [data-theme='light'] body:has(.photo-hero) .mobile-bottom-nav {
+    border-color: rgba(255, 255, 255, 0.24);
+    background:
+      linear-gradient(115deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.055) 48%, rgba(255, 255, 255, 0.12)),
+      rgba(20, 20, 18, 0.22);
+    color: rgba(255, 255, 255, 0.86);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.20),
+      0 10px 28px rgba(0, 0, 0, 0.18);
+    -webkit-backdrop-filter: blur(15px) saturate(112%);
+    backdrop-filter: blur(15px) saturate(112%);
+  }
+
+  [data-theme='light'] body:has(.photo-hero) .mobile-bottom-nav-item {
+    color: rgba(255, 255, 255, 0.68);
+  }
+
+  [data-theme='light'] body:has(.photo-hero) .mobile-bottom-nav-item.is-active {
+    color: rgba(255, 255, 255, 0.96);
+    background: rgba(255, 255, 255, 0.12);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.20);
+  }
+}
