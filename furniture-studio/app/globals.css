@@ -684,7 +684,15 @@ select:focus-visible,
 
   /* Keep the three lines inverted even while the menu is opening/closing. */
   .mobile-menu-toggle {
-    isolation: auto;
+    isolation: isolate;
+    overflow: hidden;
+  }
+
+  /* The hamburger lives inside the same glass control language as the
+     theme/favorite buttons. Its strokes still use difference blending so
+     they remain visible over both dark and light hero photography. */
+  .mobile-menu-toggle .mobile-menu-toggle-line {
+    z-index: 2;
   }
 
   /* The mobile menu labels also follow the same optical inversion rule:
