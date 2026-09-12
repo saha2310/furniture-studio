@@ -80,8 +80,8 @@ export default async function ContactsPage() {
               Расскажите, что нужно сделать. Мы обсудим размеры, форму, материалы и предложим решение.
             </p>
 
-            <div className="contact-fade-up mt-10 flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-ink/40" style={{ animationDelay: '520ms' }}>
-              <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <div className="contact-fade-up contact-scroll-hint-glow mt-10 flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-ink/85 lg:hidden" style={{ animationDelay: '520ms' }}>
+              <svg className="contact-scroll-hint-arrow" width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M10 4v11M5 11l5 5 5-5" />
               </svg>
               прокрутите вниз

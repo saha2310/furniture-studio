@@ -23,24 +23,31 @@ export function siteAssetUrl(storagePath: string): string {
  * миниатюр в медиатеке — грузить там оригиналы (до 4MB каждый) вместо
  * компактных превью и было причиной лагов при открытии.
  *
+ * Ширина и высота передаются ОБЕ: resize=cover без явной высоты — это
+ * неопределённое поведение (imgproxy не знает, под какую рамку обрезать),
+ * из-за чего вместо нормального превью может прийти обрезок в несколько
+ * пикселей исходника, растянутый на весь квадрат. Явно указываем квадрат
+ * нужного размера — он совпадает с тем, что и так вырезает CSS
+ * (aspect-square) в сетке медиатеки.
+ *
  * ⚠️ Трансформация изображений — платная функция Supabase (Pro-план и
  * выше) и должна быть включена в Dashboard → Storage → Settings. Если она
  * недоступна на вашем проекте, эндпоинт вернёт ошибку — на этот случай в
  * MediaLibraryPicker есть fallback на оригинал через onError, так что
  * список медиатеки не сломается, а просто продолжит грузить полные файлы.
  */
-function thumbUrl(bucket: string, path: string, width = 240): string {
+function thumbUrl(bucket: string, path: string, size = 240): string {
   const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
   if (!base) return '';
-  return `${base}/storage/v1/render/image/public/${bucket}/${path}?width=${width}&resize=cover&quality=60`;
+  return `${base}/storage/v1/render/image/public/${bucket}/${path}?width=${size}&height=${size}&resize=cover&quality=60`;
 }
 
-export function workImageThumbUrl(storagePath: string, width = 240): string {
-  return thumbUrl(BUCKET_WORKS, storagePath, width);
+export function workImageThumbUrl(storagePath: string, size = 240): string {
+  return thumbUrl(BUCKET_WORKS, storagePath, size);
 }
 
-export function siteAssetThumbUrl(storagePath: string, width = 240): string {
-  return thumbUrl(BUCKET_SITE, storagePath, width);
+export function siteAssetThumbUrl(storagePath: string, size = 240): string {
+  return thumbUrl(BUCKET_SITE, storagePath, size);
 }
 
 export const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
