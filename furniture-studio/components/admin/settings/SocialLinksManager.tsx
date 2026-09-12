@@ -38,18 +38,21 @@ function SubmitButton({ label }: { label: string }) {
 
 function NewLinkForm() {
   const [state, formAction] = useFormState(createContactLink, null);
+  const [platform, setPlatform] = useState('telegram');
+  const urlPlaceholder = platform === 'phone' ? '+7 900 000-00-00' : platform === 'email' ? 'mailto:info@example.ru' : 'https://t.me/username';
 
   return (
     <form action={formAction} className="flex flex-wrap items-end gap-3 rounded border border-stone/70 p-5">
-      <Select name="platform" label="Платформа" defaultValue="telegram">
+      <Select name="platform" label="Платформа" defaultValue="telegram" onChange={(e) => setPlatform(e.target.value)}>
         {KNOWN_CONTACT_PLATFORMS.map((p) => (
           <option key={p} value={p}>
             {PLATFORM_LABELS[p]}
           </option>
         ))}
       </Select>
-      <Input name="label" label="Название (видно на сайте)" placeholder="Telegram" required />
-      <Input name="url" label="Ссылка" placeholder="https://t.me/username" required className="min-w-[240px]" />
+      <Input name="label" label="Название (видно на сайте)" placeholder={platform === 'phone' ? 'Телефон 1' : 'Telegram'} required />
+      <Input name="url" label="Ссылка" placeholder={urlPlaceholder} required className="min-w-[240px]" />
+      {platform === 'phone' && <p className="w-full text-xs text-stone">Можно просто вписать номер — «tel:» подставится сам.</p>}
       <label className="flex items-center gap-2 pb-2.5 text-sm">
         <input type="checkbox" name="is_visible" defaultChecked className="h-4 w-4" />
         Показывать
@@ -62,12 +65,13 @@ function NewLinkForm() {
 
 function LinkRow({ link }: { link: ContactLink }) {
   const [editing, setEditing] = useState(false);
+  const [platform, setPlatform] = useState(link.platform);
   const [state, formAction] = useFormState(updateContactLink.bind(null, link.id), null);
 
   if (editing) {
     return (
       <form action={formAction} className="flex flex-wrap items-end gap-3 border-b border-stone/40 p-4">
-        <Select name="platform" label="Платформа" defaultValue={link.platform}>
+        <Select name="platform" label="Платформа" defaultValue={link.platform} onChange={(e) => setPlatform(e.target.value)}>
           {KNOWN_CONTACT_PLATFORMS.map((p) => (
             <option key={p} value={p}>
               {PLATFORM_LABELS[p]}
@@ -76,6 +80,7 @@ function LinkRow({ link }: { link: ContactLink }) {
         </Select>
         <Input name="label" label="Название" defaultValue={link.label} required />
         <Input name="url" label="Ссылка" defaultValue={link.url} required className="min-w-[240px]" />
+        {platform === 'phone' && <p className="w-full text-xs text-stone">Можно просто вписать номер — «tel:» подставится сам.</p>}
         <label className="flex items-center gap-2 pb-2.5 text-sm">
           <input type="checkbox" name="is_visible" defaultChecked={link.is_visible} className="h-4 w-4" />
           Показывать

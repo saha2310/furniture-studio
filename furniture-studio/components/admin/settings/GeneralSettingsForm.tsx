@@ -28,7 +28,13 @@ export function GeneralSettingsForm({ settings }: { settings: SiteSettings | nul
       <h2 className="text-lg">Основные</h2>
       <Input name="company_name" label="Название компании" defaultValue={settings?.company_name ?? ''} />
       <div className="grid gap-4 sm:grid-cols-2">
-        <Input name="phone" label="Телефон" defaultValue={settings?.phone ?? ''} />
+        <div>
+          <Input name="phone" label="Телефон (основной)" defaultValue={settings?.phone ?? ''} />
+          <p className="mt-1.5 text-xs text-espresso">
+            Один номер для футера и карточки в поиске. Чтобы показать несколько номеров на странице «Контакты» —
+            добавьте их ниже, в разделе «Способы связи», выбрав платформу «Телефон» для каждого.
+          </p>
+        </div>
         <Input name="email" type="email" label="Email" defaultValue={settings?.email ?? ''} />
       </div>
       <Input name="address" label="Адрес" defaultValue={settings?.address ?? ''} />

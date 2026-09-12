@@ -35,8 +35,30 @@ export function SocialIcon({ platform, className = 'h-5 w-5' }: { platform: stri
     case 'vk':
       return (
         <svg {...common}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M4 4h4c0 6 3 9 4 9V4h4v6c1 0 3-2 4-6h4c-1 4-3 6-5 8 2 1 4 4 5 8h-4c-1-3-3-5-4-5v5H8c-3 0-6-3-6-8 0-3 1-5 2-6" opacity="0" />
-          <path strokeLinecap="round" strokeLinejoin="round" d="M5 5c.5 6 3.5 10 7 10 M12 5v10 M12 5c3 0 5.5-2 6.5-5" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M4 5 8 19 12 5" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 5v14M15 12 21 5M15 12 21 19" />
+        </svg>
+      );
+    case 'instagram':
+      return (
+        <svg {...common}>
+          <rect x="4" y="4" width="16" height="16" rx="5" />
+          <circle cx="12" cy="12" r="4" />
+          <circle cx="16.2" cy="7.8" r="0.6" fill="currentColor" stroke="none" />
+        </svg>
+      );
+    case 'youtube':
+      return (
+        <svg {...common}>
+          <rect x="3" y="6" width="18" height="12" rx="4" />
+          <path d="M10 9.5 15.5 12 10 14.5Z" fill="currentColor" stroke="none" />
+        </svg>
+      );
+    case 'tiktok':
+      return (
+        <svg {...common}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M14 4v10.6a3.4 3.4 0 1 1-3-3.38" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M14 4c.4 2.6 2.4 4.6 5 5" />
         </svg>
       );
     default:

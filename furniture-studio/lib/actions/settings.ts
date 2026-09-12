@@ -8,6 +8,17 @@ import { ACCEPTED_IMAGE_TYPES, MAX_IMAGE_SIZE_BYTES } from '@/lib/utils/image';
 import type { ActionResult } from './works';
 import { actionError } from '@/lib/utils/action-error';
 
+// Если выбрана платформа «Телефон», а в поле «Ссылка» вписан просто номер без
+// tel: — ссылка на сайте была бы битой (браузер попробует открыть как обычный
+// адрес). Подстраховываемся на сервере, а не только подсказкой в форме.
+function normalizeContactUrl(platform: string, url: string): string {
+  if (platform !== 'phone') return url;
+  const trimmed = url.trim();
+  if (/^tel:/i.test(trimmed)) return trimmed;
+  const digitsAndPlus = trimmed.replace(/[^0-9+]/g, '');
+  return digitsAndPlus ? `tel:${digitsAndPlus}` : trimmed;
+}
+
 export async function updateSiteSettings(_prev: ActionResult | null, formData: FormData): Promise<ActionResult> {
   try {
     await requireUser();
@@ -107,7 +118,7 @@ export async function createContactLink(_prev: ActionResult | null, formData: Fo
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.from('contact_links').insert(parsed.data);
+  const { error } = await supabase.from('contact_links').insert({ ...parsed.data, url: normalizeContactUrl(parsed.data.platform, parsed.data.url) });
 
   if (error) {
     console.error('createContactLink failed', error.message);
@@ -144,7 +155,7 @@ export async function updateContactLink(
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.from('contact_links').update(parsed.data).eq('id', linkId);
+  const { error } = await supabase.from('contact_links').update({ ...parsed.data, url: normalizeContactUrl(parsed.data.platform, parsed.data.url) }).eq('id', linkId);
 
   if (error) {
     console.error('updateContactLink failed', error.message);

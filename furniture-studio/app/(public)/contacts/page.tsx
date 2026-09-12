@@ -28,12 +28,19 @@ export default async function ContactsPage() {
   // Единый список каналов связи — рендерится один раз, справа. Слева (на фото)
   // контакты больше не дублируются: см. концепт заказчика — «контакты должны
   // быть одним главным действием, а не дублироваться в трёх местах».
+  // Телефон из общих настроек — это запасной вариант для сайтов, где ещё не
+  // завели ни одного номера через «Способы связи» (там поддерживается сколько
+  // угодно номеров, каждый со своей подписью). Как только там появится хотя бы
+  // один телефон — этот, из настроек, больше не показываем, чтобы не задваивать.
+  const hasPhoneContactLink = contactLinks.some((link) => link.platform === 'phone');
   const channels: Channel[] = [
-    ...(settings?.phone ?? '')
-      .split(',')
-      .map((p) => p.trim())
-      .filter(Boolean)
-      .map((phone): Channel => ({ key: `phone-${phone}`, platform: 'phone', title: 'Позвонить', description: phone, href: formatPhoneForHref(phone) })),
+    ...(hasPhoneContactLink
+      ? []
+      : (settings?.phone ?? '')
+          .split(',')
+          .map((p) => p.trim())
+          .filter(Boolean)
+          .map((phone): Channel => ({ key: `phone-${phone}`, platform: 'phone', title: 'Позвонить', description: phone, href: formatPhoneForHref(phone) }))),
     ...contactLinks.map((link): Channel => ({ key: `link-${link.id}`, platform: link.platform, title: link.label, href: link.url, external: true })),
     ...(settings?.email ? [{ key: 'email', platform: 'email', title: 'Email', description: settings.email, href: `mailto:${settings.email}` }] : []),
   ];
