@@ -36,7 +36,7 @@ export function ContactsGalleryEditor({ images }: { images: { bucket: 'works' | 
 
       <div className="flex items-center gap-4">
         <SubmitButton />
-        <FormStatus state={state} />
+        {state && <FormStatus state={{ status: state.success ? 'success' : 'error', message: state.message }} />}
       </div>
     </form>
   );
