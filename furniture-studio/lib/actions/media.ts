@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { requireUser, isUnauthorizedError } from './auth-guard';
-import { workImageUrl, siteAssetUrl } from '@/lib/utils/image';
+import { workImageUrl, siteAssetUrl, workImageThumbUrl, siteAssetThumbUrl } from '@/lib/utils/image';
 import { revalidatePath } from 'next/cache';
 
 export type MediaBucket = 'works' | 'site';
@@ -11,6 +11,8 @@ export interface MediaAsset {
   bucket: MediaBucket;
   path: string;
   url: string;
+  /** Уменьшенная версия для сетки медиатеки (см. lib/utils/image.ts, thumbUrl). */
+  thumbUrl: string;
   updatedAt: string | null;
   sizeBytes: number | null;
 }
@@ -46,6 +48,7 @@ async function listBucketRecursive(
       bucket,
       path: fullPath,
       url: bucket === 'works' ? workImageUrl(fullPath) : siteAssetUrl(fullPath),
+      thumbUrl: bucket === 'works' ? workImageThumbUrl(fullPath) : siteAssetThumbUrl(fullPath),
       updatedAt: entry.updated_at ?? null,
       sizeBytes: entry.metadata?.size ?? null,
     });

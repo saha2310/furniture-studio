@@ -10,10 +10,19 @@ interface MediaLibraryPickerProps {
   onClose: () => void;
 }
 
+const BUCKET_LABELS: Record<'all' | 'works' | 'site', string> = {
+  all: 'Все',
+  works: 'В работах',
+  site: 'В настройках сайта',
+};
+
 export function MediaLibraryPicker({ bucket, onSelect, onClose }: MediaLibraryPickerProps) {
   const [assets, setAssets] = useState<MediaAsset[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
+  // Фильтр по бакету имеет смысл показывать только когда вызывающий код не
+  // зафиксировал bucket сам (см. WorkImageEditor — там он всегда 'works').
+  const [bucketFilter, setBucketFilter] = useState<'all' | 'works' | 'site'>('all');
   const [confirmTarget, setConfirmTarget] = useState<MediaAsset | null>(null);
   const [usageMessage, setUsageMessage] = useState<string | null>(null);
   const [checkingUsage, setCheckingUsage] = useState(false);
@@ -41,6 +50,7 @@ export function MediaLibraryPicker({ bucket, onSelect, onClose }: MediaLibraryPi
 
   const filtered = (assets ?? [])
     .filter((a) => !bucket || a.bucket === bucket)
+    .filter((a) => bucket || bucketFilter === 'all' || a.bucket === bucketFilter)
     .filter((a) => !query.trim() || a.path.toLowerCase().includes(query.trim().toLowerCase()));
 
   function requestDelete(asset: MediaAsset) {
@@ -75,13 +85,31 @@ export function MediaLibraryPicker({ bucket, onSelect, onClose }: MediaLibraryPi
           <button type="button" onClick={onClose} className="text-2xl leading-none text-ink/50 hover:text-ink" aria-label="Закрыть">×</button>
         </div>
 
-        <div className="border-b border-ink/10 p-4">
+        <div className="flex flex-col gap-3 border-b border-ink/10 p-4">
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Поиск по имени файла…"
             className="h-11 w-full border border-ink/15 bg-transparent px-3 text-sm text-ink placeholder:text-ink/35 focus:border-ink/40"
           />
+          {!bucket && (
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Фильтр по расположению">
+              {(Object.keys(BUCKET_LABELS) as Array<'all' | 'works' | 'site'>).map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setBucketFilter(key)}
+                  className={`h-9 border px-3 text-[10px] uppercase tracking-[0.1em] transition-colors ${
+                    bucketFilter === key
+                      ? 'border-ink bg-ink text-canvas'
+                      : 'border-ink/15 text-ink/60 hover:border-ink/40 hover:text-ink'
+                  }`}
+                >
+                  {BUCKET_LABELS[key]}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="flex-1 overflow-y-auto p-5">
@@ -93,7 +121,21 @@ export function MediaLibraryPicker({ bucket, onSelect, onClose }: MediaLibraryPi
             {filtered.map((asset) => (
               <div key={`${asset.bucket}:${asset.path}`} className="group relative overflow-hidden border border-ink/10 bg-black">
                 <button type="button" onClick={() => onSelect(asset)} className="block aspect-square w-full">
-                  <img src={asset.url} alt={asset.path} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" />
+                  <img
+                    src={asset.thumbUrl}
+                    alt={asset.path}
+                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    loading="lazy"
+                    decoding="async"
+                    // Если в проекте Supabase не включены (платные) Image
+                    // Transformations, эндпоинт миниатюры вернёт ошибку —
+                    // в этом случае тихо откатываемся на оригинал, чтобы
+                    // картинка всё равно показалась.
+                    onError={(e) => {
+                      const img = e.currentTarget;
+                      if (img.src !== asset.url) img.src = asset.url;
+                    }}
+                  />
                 </button>
                 <button
                   type="button"
