@@ -74,6 +74,9 @@ export async function updateCategory(categoryId: string, _prev: ActionResult | n
   if (currentError) return { success: false, message: actionError('Не удалось прочитать категорию.', currentError) };
   if (!current) return { success: false, message: 'Категория не найдена.' };
 
+  const mediaPath = formData.get('category_image_media_path');
+  const pickedFromLibrary = typeof mediaPath === 'string' && mediaPath.trim().length > 0;
+
   let nextImagePath = current.image_path;
   let uploadedPath: string | null = null;
   if (file) {
@@ -81,6 +84,9 @@ export async function updateCategory(categoryId: string, _prev: ActionResult | n
     if (uploaded.error || !uploaded.path) return { success: false, message: uploaded.error ?? 'Не удалось загрузить изображение.' };
     nextImagePath = uploaded.path;
     uploadedPath = uploaded.path;
+  } else if (pickedFromLibrary) {
+    // Уже существующий файл, выбранный в медиатеке — без повторной загрузки.
+    nextImagePath = mediaPath as string;
   } else if (formData.get('category_image_remove') === '1') {
     nextImagePath = null;
   }
@@ -92,7 +98,7 @@ export async function updateCategory(categoryId: string, _prev: ActionResult | n
     return { success: false, message };
   }
 
-  if (current.image_path && current.image_path !== nextImagePath) await supabase.storage.from('works').remove([current.image_path]);
+  if (current.image_path && current.image_path !== nextImagePath && !pickedFromLibrary) await supabase.storage.from('works').remove([current.image_path]);
   revalidatePath('/admin/categories'); revalidatePath('/works'); revalidatePath('/');
   return { success: true, message: 'Изменения сохранены' };
 }

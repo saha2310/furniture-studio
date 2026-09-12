@@ -51,7 +51,8 @@ export type HomeSectionKey =
   | 'process'
   | 'custom_made'
   | 'about_teaser'
-  | 'contact_cta';
+  | 'contact_cta'
+  | 'contacts_gallery';
 
 export interface HeroContent {
   title: string;

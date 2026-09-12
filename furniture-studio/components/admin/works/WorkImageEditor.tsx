@@ -1,15 +1,34 @@
 'use client';
 
 import Image from 'next/image';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import type { WorkImageWithUrl } from '@/types/domain';
 import { MAX_IMAGE_SIZE_BYTES } from '@/lib/utils/image';
 import { ImageCropDialog } from '@/components/admin/shared/ImageCropDialog';
+import { MediaLibraryPicker } from '@/components/admin/shared/MediaLibraryPicker';
+import { copyMediaAssetToWork } from '@/lib/actions/media';
 
 interface PendingNewImage { id: string; file: File; url: string }
 interface PendingReplacement { id: string; file: File; url: string }
 
-export function WorkImageEditor({ images, coverImageId }: { images: WorkImageWithUrl[]; coverImageId: string | null }) {
+export function WorkImageEditor({ images, coverImageId, workId }: { images: WorkImageWithUrl[]; coverImageId: string | null; workId?: string | null }) {
+  const router = useRouter();
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const [libraryError, setLibraryError] = useState<string | null>(null);
+  const [isCopying, startCopyTransition] = useTransition();
+
+  function pickFromLibrary(asset: { bucket: 'works' | 'site'; path: string }) {
+    if (!workId) return;
+    setLibraryError(null);
+    startCopyTransition(async () => {
+      const result = await copyMediaAssetToWork(workId, asset.path);
+      if (!result.success) { setLibraryError(result.message); return; }
+      setLibraryOpen(false);
+      router.refresh();
+    });
+  }
+
   const newInputRef = useRef<HTMLInputElement>(null);
   const [newImages, setNewImages] = useState<PendingNewImage[]>([]);
   const [replacements, setReplacements] = useState<PendingReplacement[]>([]);
@@ -113,13 +132,23 @@ export function WorkImageEditor({ images, coverImageId }: { images: WorkImageWit
           <h2 className="mt-1 text-xl text-ink">Галерея работы</h2>
           <p className="mt-2 max-w-[72ch] text-xs leading-5 text-ink/60">Добавление, удаление и кадрирование пока являются изменениями формы. Они попадут в базу и Storage только после кнопки «Сохранить изменения» внизу.</p>
         </div>
-        <label className="cursor-pointer border border-ink/20 bg-ink px-4 py-3 text-[10px] uppercase tracking-[0.12em] text-canvas hover:bg-ink/90">
-          + Добавить фотографии
-          <input ref={newInputRef} type="file" name="new_work_files" multiple accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(e) => { addFiles(e.target.files); }} />
-        </label>
+        <div className="flex flex-wrap gap-2">
+          {workId && (
+            <button type="button" onClick={() => setLibraryOpen(true)} disabled={isCopying} className="border border-ink/15 px-4 py-3 text-[10px] uppercase tracking-[0.12em] text-ink/75 hover:border-ink/40 hover:text-ink disabled:opacity-50">
+              {isCopying ? 'Копируем…' : 'Добавить из галереи'}
+            </button>
+          )}
+          <label className="cursor-pointer border border-ink/20 bg-ink px-4 py-3 text-[10px] uppercase tracking-[0.12em] text-canvas hover:bg-ink/90">
+            + Добавить фотографии
+            <input ref={newInputRef} type="file" name="new_work_files" multiple accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(e) => { addFiles(e.target.files); }} />
+          </label>
+        </div>
       </div>
 
+      {!workId && <p className="mt-3 text-xs text-ink/45">Добавление из галереи будет доступно после первого сохранения работы.</p>}
+      {libraryError && <p role="alert" className="mt-4 border border-red-300/20 bg-red-300/5 px-3 py-2 text-xs text-red-200">{libraryError}</p>}
       {error && <p role="alert" className="mt-4 border border-red-300/20 bg-red-300/5 px-3 py-2 text-xs text-red-200">{error}</p>}
+      {libraryOpen && <MediaLibraryPicker bucket="works" onClose={() => setLibraryOpen(false)} onSelect={pickFromLibrary} />}
 
       <div
         className={`mt-5 border border-dashed px-4 py-3 text-center text-[10px] uppercase tracking-[0.14em] transition-colors ${dragging ? 'border-ink/45 bg-ink/[0.06] text-ink' : 'border-ink/10 text-ink/35'}`}

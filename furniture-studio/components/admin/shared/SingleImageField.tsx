@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { workImageUrl, siteAssetUrl, MAX_IMAGE_SIZE_BYTES } from '@/lib/utils/image';
 import { ImageCropDialog } from './ImageCropDialog';
+import { MediaLibraryPicker } from './MediaLibraryPicker';
+import type { MediaAsset } from '@/lib/actions/media';
 
 export function SingleImageField({
   fieldName,
@@ -27,12 +29,26 @@ export function SingleImageField({
   const [editorSource, setEditorSource] = useState<string | null>(null);
   const [remove, setRemove] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const [mediaPath, setMediaPath] = useState<string | null>(null);
   const objectUrlRef = useRef<string | null>(null);
 
   useEffect(() => () => { if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current); }, []);
 
   const existingUrl = existingPath ? (bucket === 'site' ? siteAssetUrl(existingPath) : workImageUrl(existingPath)) : null;
-  const currentUrl = previewUrl || (!remove ? existingUrl : null);
+  const mediaUrl = mediaPath ? (bucket === 'site' ? siteAssetUrl(mediaPath) : workImageUrl(mediaPath)) : null;
+  const currentUrl = previewUrl || mediaUrl || (!remove ? existingUrl : null);
+
+  function pickFromLibrary(asset: { bucket: 'works' | 'site'; path: string }) {
+    if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+    objectUrlRef.current = null;
+    setFile(null);
+    setInputFile(null);
+    setPreviewUrl(null);
+    setMediaPath(asset.path);
+    setRemove(false);
+    setLibraryOpen(false);
+  }
 
   function setInputFile(nextFile: File | null) {
     if (!inputRef.current) return;
@@ -52,6 +68,7 @@ export function SingleImageField({
     setInputFile(next);
     setPreviewUrl(url);
     setRemove(false);
+    setMediaPath(null);
   }
 
   function openEditor() {
@@ -76,6 +93,7 @@ export function SingleImageField({
     setPreviewUrl(null);
     setInputFile(null);
     setRemove(true);
+    setMediaPath(null);
     setEditorSource(null);
   }
 
@@ -97,12 +115,24 @@ export function SingleImageField({
           {currentUrl ? 'Заменить' : 'Выбрать'}
           <input ref={inputRef} type="file" name={fieldName} accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(e) => choose(e.target.files)} />
         </label>
+        <button type="button" onClick={() => setLibraryOpen(true)} className="border border-ink/15 px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-ink/75 hover:border-ink/40 hover:text-ink">
+          Открыть галерею
+        </button>
         {currentUrl && <button type="button" onClick={clear} className="border border-red-400/20 px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-red-200 hover:border-red-300/50">Удалить</button>}
         {file && <button type="button" onClick={openEditor} className="border border-ink/15 px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-ink/75 hover:border-ink/40 hover:text-ink">Обрезать</button>}
       </div>
 
+      {mediaPath && <p className="mt-3 text-[11px] leading-5 text-ink/70">Выбрано из медиатеки. Оно ещё не сохранено — нажмите кнопку сохранения этой формы.</p>}
       {remove && <input type="hidden" name={`${fieldName}_remove`} value="1" />}
+      {mediaPath && <input type="hidden" name={`${fieldName}_media_path`} value={mediaPath} />}
       {editorSource && <ImageCropDialog sourceUrl={editorSource} initialRatio={cropRatio} onCancel={() => setEditorSource(null)} onApply={applyCrop} title={`Редактирование: ${label.toLowerCase()}`} />}
+      {libraryOpen && (
+        <MediaLibraryPicker
+          bucket={bucket}
+          onClose={() => setLibraryOpen(false)}
+          onSelect={(asset) => pickFromLibrary(asset)}
+        />
+      )}
     </div>
   );
 }

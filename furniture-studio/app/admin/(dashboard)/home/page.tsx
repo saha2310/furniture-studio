@@ -2,6 +2,7 @@ import { getHomeSections, findSection } from '@/lib/queries/home';
 import { HeroEditor } from '@/components/admin/home/HeroEditor';
 import { ProcessEditor } from '@/components/admin/home/ProcessEditor';
 import { SimpleSectionEditor } from '@/components/admin/home/SimpleSectionEditor';
+import { ContactsGalleryEditor } from '@/components/admin/home/ContactsGalleryEditor';
 import { PageHeader } from '@/components/admin/shared/PageHeader';
 import { AdminSection } from '@/components/admin/shared/AdminSection';
 import type { HeroContent, ProcessContent } from '@/types/domain';
@@ -15,6 +16,8 @@ export default async function AdminHomePage() {
   const customMade = findSection(sections, 'custom_made');
   const aboutTeaser = findSection(sections, 'about_teaser');
   const contactCta = findSection(sections, 'contact_cta');
+  const contactsGallery = findSection(sections, 'contacts_gallery');
+  const contactsGalleryImages = (contactsGallery?.content_json as { images?: { bucket: 'works' | 'site'; path: string }[] } | null)?.images ?? [];
 
   return <div className="max-w-5xl"><PageHeader title="Главная" description="Редактируйте блоки главной страницы. Большинство секций свернуты, чтобы форма не превращалась в длинную стену полей." /><div className="mt-6 space-y-3">
     <AdminSection title="Первый экран" description="Главный заголовок, описание, кнопки и изображение." defaultOpen><HeroEditor content={(hero?.content_json as unknown as HeroContent) ?? null} isVisible={hero?.is_visible ?? true} /></AdminSection>
@@ -24,5 +27,6 @@ export default async function AdminHomePage() {
     <AdminSection title="Индивидуальное изготовление" description="Текст и видимость секции." ><SimpleSectionEditor sectionKey="custom_made" label="Индивидуальное изготовление" title={customMade?.title ?? null} subtitle={customMade?.subtitle ?? null} isVisible={customMade?.is_visible ?? true} subtitleLabel="Текст блока" /></AdminSection>
     <AdminSection title="О мастерской на главной" description="Короткий блок со ссылкой на страницу мастерской." ><SimpleSectionEditor sectionKey="about_teaser" label="О мастерской" title={aboutTeaser?.title ?? null} subtitle={aboutTeaser?.subtitle ?? null} isVisible={aboutTeaser?.is_visible ?? true} subtitleLabel="Текст блока" /></AdminSection>
     <AdminSection title="Финальный призыв к действию" description="Последний CTA на главной." ><SimpleSectionEditor sectionKey="contact_cta" label="Финальный CTA" title={contactCta?.title ?? null} subtitle={contactCta?.subtitle ?? null} isVisible={contactCta?.is_visible ?? true} subtitleLabel="Текст блока" /></AdminSection>
+    <AdminSection title="Карусель на странице «Контакты»" description="До 5 фото, автосмена каждые 5 секунд."><ContactsGalleryEditor images={contactsGalleryImages} /></AdminSection>
   </div></div>;
 }

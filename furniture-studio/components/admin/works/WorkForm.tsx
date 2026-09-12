@@ -162,7 +162,7 @@ export function WorkForm({ categories, initialData, action, submitLabel, redirec
                 </div>
               </div>
             )}
-            <WorkImageEditor images={initialData?.images ?? []} coverImageId={initialData?.cover_image_id ?? null} />
+            <WorkImageEditor images={initialData?.images ?? []} coverImageId={initialData?.cover_image_id ?? null} workId={initialData?.id ?? null} />
           </section>
 
           <section className="border-t border-ink/10 pt-7">

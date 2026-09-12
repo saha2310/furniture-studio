@@ -19,6 +19,15 @@ export const processContentSchema = z.object({
   steps: z.array(processStepSchema).min(1).max(8),
 });
 
+export const contactsGalleryImageSchema = z.object({
+  bucket: z.enum(['works', 'site']),
+  path: z.string().min(1),
+});
+
+export const contactsGalleryContentSchema = z.object({
+  images: z.array(contactsGalleryImageSchema).max(5),
+});
+
 export const homeSectionMetaSchema = z.object({
   key: z.string().min(1),
   title: z.string().trim().max(200).optional().or(z.literal('')),

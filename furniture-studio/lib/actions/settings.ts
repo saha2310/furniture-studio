@@ -72,6 +72,9 @@ export async function saveSiteAsset(
   let nextPath = oldPath;
   let uploadedPath: string | null = null;
 
+  const mediaPath = formData.get('file_media_path');
+  const pickedFromLibrary = typeof mediaPath === 'string' && mediaPath.trim().length > 0;
+
   if (file) {
     const ext = file.name.split('.').pop()?.toLowerCase() || 'webp';
     const path = `${field}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${ext}`;
@@ -79,6 +82,12 @@ export async function saveSiteAsset(
     if (uploadError) return { success: false, message: actionError('Не удалось загрузить изображение.', uploadError) };
     nextPath = path;
     uploadedPath = path;
+  } else if (pickedFromLibrary) {
+    // Указывает на уже существующий файл в 'site' bucket — без повторной
+    // загрузки. Старый файл ниже НЕ удаляем: он мог быть выбран из
+    // медиатеки и использоваться где-то ещё, надёжно это знает только сама
+    // медиатека (проверка перед её собственным удалением).
+    nextPath = mediaPath as string;
   } else if (formData.get('file_remove') === '1') {
     nextPath = null;
   }
@@ -89,7 +98,7 @@ export async function saveSiteAsset(
     return { success: false, message: actionError('Не удалось сохранить настройку.', updateError) };
   }
 
-  if (oldPath && oldPath !== nextPath) await supabase.storage.from('site').remove([oldPath]);
+  if (oldPath && oldPath !== nextPath && !pickedFromLibrary) await supabase.storage.from('site').remove([oldPath]);
   revalidatePath('/', 'layout'); revalidatePath('/admin/settings');
   return { success: true, message: file ? 'Изображение сохранено' : nextPath ? 'Настройка сохранена' : 'Изображение удалено' };
 }

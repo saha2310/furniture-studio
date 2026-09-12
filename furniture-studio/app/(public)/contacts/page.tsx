@@ -4,8 +4,9 @@ import { getSiteSettings, getContactLinks } from '@/lib/queries/site';
 import { getHomeSections } from '@/lib/queries/home';
 import { SocialIcon } from '@/components/layout/SocialIcon';
 import { ContactParallaxPhoto } from '@/components/contacts/ContactParallaxPhoto';
+import { ContactCarousel } from '@/components/contacts/ContactCarousel';
 import { formatPhoneForHref } from '@/lib/utils/format';
-import { workImageUrl } from '@/lib/utils/image';
+import { workImageUrl, siteAssetUrl } from '@/lib/utils/image';
 
 export const metadata: Metadata = {
   title: 'Контакты',
@@ -24,6 +25,11 @@ type Channel = {
 export default async function ContactsPage() {
   const [settings, contactLinks, sections] = await Promise.all([getSiteSettings(), getContactLinks(), getHomeSections()]);
   const hero = sections.find((section) => section.key === 'hero');
+  const gallerySection = sections.find((section) => section.key === 'contacts_gallery');
+  const galleryImages = ((gallerySection?.content_json as { images?: { bucket: 'works' | 'site'; path: string }[] } | null)?.images ?? []).map((img) => ({
+    url: img.bucket === 'works' ? workImageUrl(img.path) : siteAssetUrl(img.path),
+    alt: 'Интерьер мастерской',
+  }));
 
   // Единый список каналов связи — рендерится один раз, справа. Слева (на фото)
   // контакты больше не дублируются: см. концепт заказчика — «контакты должны
@@ -51,7 +57,9 @@ export default async function ContactsPage() {
         <div className="relative min-h-[620px] overflow-hidden border-b border-ink/10 lg:border-b-0 lg:border-r">
           <div className="contact-photo-in absolute inset-0">
             <ContactParallaxPhoto>
-              {hero?.content_json && typeof (hero.content_json as { imagePath?: unknown }).imagePath === 'string' ? (
+              {galleryImages.length > 0 ? (
+                <ContactCarousel images={galleryImages} />
+              ) : hero?.content_json && typeof (hero.content_json as { imagePath?: unknown }).imagePath === 'string' ? (
                 <Image src={workImageUrl((hero.content_json as { imagePath: string }).imagePath)} alt="Интерьер мастерской" fill priority sizes="50vw" className="object-cover" />
               ) : (
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_65%_45%,rgb(var(--fallback-gradient-1)),rgb(var(--fallback-gradient-2))_45%,rgb(var(--fallback-gradient-3))_75%)]" />
