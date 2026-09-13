@@ -12,6 +12,11 @@ export interface ActionResult {
   success: boolean;
   message: string;
   id?: string;
+  // Возвращается, когда сервер сохранил slug, отличный от того, что ввёл
+  // администратор (например, из-за коллизии — см. ensureUniqueSlug). Форма
+  // использует это, чтобы синхронизировать поле "URL / slug" с тем, что
+  // реально записано в БД, а не молча оставлять устаревшее значение.
+  slug?: string;
 }
 
 function specsFromFormData(formData: FormData): Record<string, string> {
@@ -130,82 +135,133 @@ async function syncWorkImages(
     if (file.size > MAX_IMAGE_SIZE_BYTES) return { success: false, message: `Файл «${file.name}» превышает 4 МБ.` };
   }
 
-  if (deleteIds.length) {
+  // Удаление, замена уже существующих фото и загрузка новых не зависят друг
+  // от друга (разные id, разные storage-пути) — раньше все три группы
+  // операций выполнялись строго последовательно, а внутри замены/загрузки
+  // ещё и файл за файлом. Для галереи из 5-10 фото это давало 10-20
+  // последовательных round-trip'ов к Storage/Postgres и было главной
+  // причиной долгого сохранения. Ниже те же самые операции выполняются
+  // параллельно (Promise.all) там, где между ними нет реальной зависимости.
+  const uniqueExt = (file: File) => file.name.split('.').pop()?.toLowerCase() || 'webp';
+  const randomPath = (file: File) => `${workId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${uniqueExt(file)}`;
+
+  async function runDeletions(): Promise<{ success: boolean; message?: string }> {
+    if (!deleteIds.length) return { success: true };
     const { data: doomed, error } = await supabase
       .from('work_images')
       .select('id, storage_path')
       .in('id', deleteIds)
       .eq('work_id', workId);
     if (error) return { success: false, message: actionError('Не удалось подготовить удаление фотографий.', error) };
-    if (doomed?.length) {
-      const doomedIds = doomed.map((item) => item.id);
-      const { error: deleteError } = await supabase.from('work_images').delete().in('id', doomedIds);
-      if (deleteError) return { success: false, message: actionError('Не удалось удалить выбранные фотографии.', deleteError) };
-      const { error: storageError } = await supabase.storage.from('works').remove(doomed.map((item) => item.storage_path));
-      if (storageError) console.error('syncWorkImages: storage remove failed', storageError.message);
-    }
+    if (!doomed?.length) return { success: true };
+    const doomedIds = doomed.map((item) => item.id);
+    // Сначала удаляем строки в БД — это то, что делает изображение
+    // действительно отвязанным от товара; файл в Storage подчищаем следом
+    // (если это не получится — фото уже не привязано к товару, просто
+    // останется "осиротевший" файл, не повреждённые данные).
+    const { error: deleteError } = await supabase.from('work_images').delete().in('id', doomedIds);
+    if (deleteError) return { success: false, message: actionError('Не удалось удалить выбранные фотографии.', deleteError) };
+    const { error: storageError } = await supabase.storage.from('works').remove(doomed.map((item) => item.storage_path));
+    if (storageError) console.error('syncWorkImages: storage remove failed', storageError.message);
+    return { success: true };
   }
 
-  for (let i = 0; i < replacementFiles.length; i += 1) {
-    const file = replacementFiles[i];
-    const imageId = replacementIds[i];
-    const { data: old, error: oldError } = await supabase
+  async function runReplacements(): Promise<{ success: boolean; message?: string }> {
+    if (!replacementFiles.length) return { success: true };
+    // Каждая замена независима от остальных (разные id, разные файлы) —
+    // загружаем и применяем их все одновременно вместо очереди по одному.
+    const results = await Promise.all(
+      replacementFiles.map(async (file, i) => {
+        const imageId = replacementIds[i];
+        const { data: old, error: oldError } = await supabase
+          .from('work_images')
+          .select('storage_path')
+          .eq('id', imageId)
+          .eq('work_id', workId)
+          .maybeSingle();
+        if (oldError || !old) return { success: false as const, message: 'Одно из изменяемых изображений больше не существует.' };
+
+        const path = randomPath(file);
+        const { error: uploadError } = await supabase.storage.from('works').upload(path, file, {
+          contentType: file.type,
+          cacheControl: '31536000',
+        });
+        if (uploadError) return { success: false as const, message: `Не удалось загрузить «${file.name}».` };
+
+        const { error: updateError } = await supabase.from('work_images').update({ storage_path: path }).eq('id', imageId).eq('work_id', workId);
+        if (updateError) {
+          await supabase.storage.from('works').remove([path]);
+          return { success: false as const, message: actionError('Не удалось сохранить изменённую фотографию.', updateError) };
+        }
+        if (old.storage_path) await supabase.storage.from('works').remove([old.storage_path]);
+        return { success: true as const };
+      })
+    );
+    const failed = results.find((r) => !r.success);
+    return failed ?? { success: true };
+  }
+
+  async function runNewUploads(): Promise<{ success: boolean; message?: string; idMap: Map<string, string> }> {
+    const idMap = new Map<string, string>();
+    if (!newFiles.length) return { success: true, idMap };
+
+    const { data: currentMax, error: maxError } = await supabase
       .from('work_images')
-      .select('storage_path')
-      .eq('id', imageId)
+      .select('sort_order')
       .eq('work_id', workId)
+      .order('sort_order', { ascending: false })
+      .limit(1)
       .maybeSingle();
-    if (oldError || !old) return { success: false, message: 'Одно из изменяемых изображений больше не существует.' };
+    if (maxError) return { success: false, message: actionError('Не удалось определить порядок фотографий.', maxError), idMap };
+    const startOrder = (currentMax?.sort_order ?? -1) + 1;
 
-    const ext = file.name.split('.').pop()?.toLowerCase() || 'webp';
-    const path = `${workId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-    const { error: uploadError } = await supabase.storage.from('works').upload(path, file, {
-      contentType: file.type,
-      cacheControl: '31536000',
-    });
-    if (uploadError) return { success: false, message: `Не удалось загрузить «${file.name}».` };
+    // Загружаем все файлы в Storage параллельно — это самая медленная часть
+    // (сетевая передача бинарных данных), и именно она давала наибольший
+    // выигрыш от распараллеливания.
+    const uploads = await Promise.all(
+      newFiles.map(async (file, i) => {
+        const path = randomPath(file);
+        const { error: uploadError } = await supabase.storage.from('works').upload(path, file, {
+          contentType: file.type,
+          cacheControl: '31536000',
+        });
+        if (uploadError) return { ok: false as const, file, path: null as string | null };
+        return { ok: true as const, file, path, clientId: newIds[i], sortOrder: startOrder + i };
+      })
+    );
 
-    const { error: updateError } = await supabase.from('work_images').update({ storage_path: path }).eq('id', imageId).eq('work_id', workId);
-    if (updateError) {
-      await supabase.storage.from('works').remove([path]);
-      return { success: false, message: actionError('Не удалось сохранить изменённую фотографию.', updateError) };
+    const succeeded = uploads.filter((u): u is { ok: true; file: File; path: string; clientId: string; sortOrder: number } => u.ok);
+    const failedUpload = uploads.find((u): u is { ok: false; file: File; path: null } => !u.ok);
+
+    if (succeeded.length) {
+      // Одна batch-вставка вместо N отдельных insert-запросов — экономит
+      // N-1 round-trip'ов к Postgres. Сопоставляем обратно по storage_path
+      // (гарантированно уникален за счёт временной метки + случайного
+      // суффикса), а не по порядку в ответе — так надёжнее.
+      const { data: rows, error: insertError } = await supabase
+        .from('work_images')
+        .insert(succeeded.map((u) => ({ work_id: workId, storage_path: u.path, sort_order: u.sortOrder })))
+        .select('id, storage_path');
+      if (insertError || !rows) {
+        await supabase.storage.from('works').remove(succeeded.map((u) => u.path));
+        return { success: false, message: 'Не удалось сохранить новые фотографии.', idMap };
+      }
+      const pathToId = new Map(rows.map((row) => [row.storage_path, row.id]));
+      for (const u of succeeded) {
+        const id = pathToId.get(u.path);
+        if (id) idMap.set(u.clientId, id);
+      }
     }
-    if (old.storage_path) await supabase.storage.from('works').remove([old.storage_path]);
+
+    if (failedUpload) return { success: false, message: `Не удалось загрузить «${failedUpload.file.name}».`, idMap };
+    return { success: true, idMap };
   }
 
-  const { data: currentMax, error: maxError } = await supabase
-    .from('work_images')
-    .select('sort_order')
-    .eq('work_id', workId)
-    .order('sort_order', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (maxError) return { success: false, message: actionError('Не удалось определить порядок фотографий.', maxError) };
-  let nextOrder = (currentMax?.sort_order ?? -1) + 1;
-  const newIdMap = new Map<string, string>();
-
-  for (let i = 0; i < newFiles.length; i += 1) {
-    const file = newFiles[i];
-    const clientId = newIds[i];
-    const ext = file.name.split('.').pop()?.toLowerCase() || 'webp';
-    const path = `${workId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-    const { error: uploadError } = await supabase.storage.from('works').upload(path, file, {
-      contentType: file.type,
-      cacheControl: '31536000',
-    });
-    if (uploadError) return { success: false, message: `Не удалось загрузить «${file.name}».` };
-
-    const { data: row, error: insertError } = await supabase
-      .from('work_images')
-      .insert({ work_id: workId, storage_path: path, sort_order: nextOrder++ })
-      .select('id')
-      .single();
-    if (insertError || !row) {
-      await supabase.storage.from('works').remove([path]);
-      return { success: false, message: 'Не удалось сохранить новую фотографию.' };
-    }
-    newIdMap.set(clientId, row.id);
-  }
+  const [deleteResult, replacementResult, newUploadResult] = await Promise.all([runDeletions(), runReplacements(), runNewUploads()]);
+  if (!deleteResult.success) return { success: false, message: deleteResult.message ?? 'Не удалось удалить выбранные фотографии.' };
+  if (!replacementResult.success) return { success: false, message: replacementResult.message ?? 'Не удалось сохранить изменённые фотографии.' };
+  if (!newUploadResult.success) return { success: false, message: newUploadResult.message ?? 'Не удалось сохранить новые фотографии.' };
+  const newIdMap = newUploadResult.idMap;
 
   let finalCover: string | null = null;
   if (selectedCover.startsWith('new:')) finalCover = newIdMap.get(selectedCover) ?? null;
@@ -302,6 +358,7 @@ export async function createWork(_prev: ActionResult | null, formData: FormData)
     success: true,
     message: finalSlug === parsed.data.slug ? 'Работа создана' : `Работа создана. Адрес страницы уже был занят, поэтому сохранили как /works/${finalSlug}`,
     id: data.id,
+    slug: finalSlug,
   };
 }
 
@@ -393,6 +450,7 @@ export async function updateWork(
   return {
     success: true,
     message: finalSlug === parsed.data.slug ? 'Изменения сохранены' : `Изменения сохранены. Адрес страницы уже был занят, сохранили как /works/${finalSlug}`,
+    slug: finalSlug,
   };
 }
 

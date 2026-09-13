@@ -10,8 +10,9 @@ import { Textarea } from '@/components/ui/Textarea';
 import { Select } from '@/components/ui/Select';
 import { FormStatus } from '@/components/ui/FormStatus';
 import { SaveBar } from '@/components/admin/shared/SaveBar';
+import { ConfirmDialog } from '@/components/admin/shared/ConfirmDialog';
 import { slugify } from '@/lib/utils/slug';
-import type { ActionResult } from '@/lib/actions/works';
+import { deleteWork, type ActionResult } from '@/lib/actions/works';
 import type { Category, WorkWithUrls } from '@/types/domain';
 import { WorkImageEditor } from './WorkImageEditor';
 
@@ -68,22 +69,63 @@ function VariantBar({
   groupId?: string;
   categoryId?: string;
 }) {
+  const router = useRouter();
   if (siblings.length === 0 && !groupId) return null;
   const addHref = `/admin/works/new?group=${groupId ?? currentId ?? ''}&category=${categoryId ?? ''}&title=${encodeURIComponent(currentTitle)}`;
+
+  // Удаление цвета из группы — реальное удаление строки/фото варианта
+  // (deleteWork), а не просто скрытие чипа в интерфейсе. Для соседнего
+  // варианта достаточно обновить данные страницы; если удаляют именно тот
+  // вариант, который сейчас открыт, — со страницы уходим (иначе после
+  // удаления мы остались бы на странице несуществующей более записи).
+  async function handleDeleteSibling(id: string) {
+    const result = await deleteWork(id);
+    if (result.success) router.refresh();
+    return result;
+  }
+
+  async function handleDeleteCurrent() {
+    if (!currentId) return { success: false, message: 'Товар не найден.' };
+    const result = await deleteWork(currentId);
+    if (result.success) {
+      const fallback = siblings[0]?.id;
+      router.push(fallback ? `/admin/works/${fallback}` : '/admin/works');
+    }
+    return result;
+  }
+
   return (
     <div className="flex min-w-0 items-center gap-2 overflow-x-auto border-b border-ink/10 pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       <span className="mr-2 shrink-0 text-[9px] uppercase tracking-[0.16em] text-ink/35">Варианты</span>
       {currentId && (
-        <span className="inline-flex h-8 shrink-0 items-center gap-2 border border-ink/25 bg-ink/[0.04] px-3 text-xs text-ink">
+        <span className="inline-flex h-8 shrink-0 items-center gap-2 border border-ink/25 bg-ink/[0.04] pl-3 pr-1.5 text-xs text-ink">
           <span className="h-3 w-3 rounded-full border border-ink/15" style={{ backgroundColor: currentColorHex || DEFAULT_SWATCH_HEX }} />
           {currentColorName || 'Текущий'}
+          {siblings.length > 0 && (
+            <ConfirmDialog
+              triggerLabel="×"
+              title="Удалить цветовой вариант?"
+              description={`Вариант «${currentColorName || 'Текущий'}» и его фотографии будут удалены без возможности восстановления. Вы перейдёте к другому варианту.`}
+              onConfirm={handleDeleteCurrent}
+              triggerClassName="ml-1 flex h-5 w-5 items-center justify-center rounded-full text-sm leading-none text-ink/40 hover:bg-red-300/10 hover:text-red-200"
+            />
+          )}
         </span>
       )}
       {siblings.map((sibling) => (
-        <Link key={sibling.id} href={`/admin/works/${sibling.id}`} className="inline-flex h-8 shrink-0 items-center gap-2 border border-ink/10 px-3 text-xs text-ink/55 transition hover:border-ink/25 hover:text-ink">
-          <span className="h-3 w-3 rounded-full border border-ink/15" style={{ backgroundColor: sibling.color_hex || DEFAULT_SWATCH_HEX }} />
-          {sibling.color_name || 'Без названия'}
-        </Link>
+        <span key={sibling.id} className="inline-flex h-8 shrink-0 items-center gap-2 border border-ink/10 pl-3 pr-1.5 text-xs text-ink/55 transition hover:border-ink/25 hover:text-ink">
+          <Link href={`/admin/works/${sibling.id}`} className="inline-flex items-center gap-2">
+            <span className="h-3 w-3 rounded-full border border-ink/15" style={{ backgroundColor: sibling.color_hex || DEFAULT_SWATCH_HEX }} />
+            {sibling.color_name || 'Без названия'}
+          </Link>
+          <ConfirmDialog
+            triggerLabel="×"
+            title="Удалить цветовой вариант?"
+            description={`Вариант «${sibling.color_name || 'Без названия'}» и его фотографии будут удалены без возможности восстановления.`}
+            onConfirm={() => handleDeleteSibling(sibling.id)}
+            triggerClassName="flex h-5 w-5 items-center justify-center rounded-full text-sm leading-none text-ink/30 hover:bg-red-300/10 hover:text-red-200"
+          />
+        </span>
       ))}
       <Link href={addHref} className="ml-auto shrink-0 px-2 text-[9px] uppercase tracking-[0.14em] text-ink/50 hover:text-ink">+ Новый цвет</Link>
     </div>
@@ -102,6 +144,18 @@ export function WorkForm({ categories, initialData, action, submitLabel, redirec
   const [colorName, setColorName] = useState(initialData?.color_name ?? '');
   const [colorHex, setColorHex] = useState(initialData?.color_hex ?? (groupId ? DEFAULT_SWATCH_HEX : ''));
   const [dirty, setDirty] = useState(false);
+  // Увеличивается только когда сохранение реально прошло успешно. Служит
+  // ключом для WorkImageEditor (см. ниже): после успешного сохранения
+  // Server Action ревалидирует эту страницу и родитель получает свежий
+  // initialData.images с сервера, но сам инстанс WorkImageEditor как
+  // клиентский компонент не размонтируется и молча продолжает хранить
+  // старое локальное состояние (уже отправленные "новые" файлы, отметки
+  // на удаление/замену). Раньше это и было причиной дублирования фото:
+  // те же File-объекты оставались в скрытом input'е и на следующем
+  // сохранении отправлялись повторно как "новые". Смена key заставляет
+  // React полностью пересоздать компонент и инициализировать его заново
+  // из уже сохранённых данных — единственных, которым можно доверять.
+  const [saveVersion, setSaveVersion] = useState(0);
   const effectiveGroupId = initialData?.group_id ?? groupId;
   const isPartOfGroup = colorVariants.length > 0 || !!groupId;
   const heroImage = initialData?.images?.find((image) => image.id === initialData.cover_image_id)?.url ?? initialData?.images?.[0]?.url;
@@ -110,6 +164,11 @@ export function WorkForm({ categories, initialData, action, submitLabel, redirec
   useEffect(() => {
     if (state?.success) {
       setDirty(false);
+      setSaveVersion((v) => v + 1);
+      // Если сервер подобрал другой slug из-за коллизии (ensureUniqueSlug),
+      // поле в форме должно показывать реально сохранённое значение, а не
+      // то, что администратор ввёл до сохранения.
+      if (state.slug) { setSlug(state.slug); setSlugTouched(true); }
       if (redirectToDetailOnSuccess && state.id) router.push(`/admin/works/${state.id}`);
     }
   }, [state, redirectToDetailOnSuccess, router]);
@@ -162,7 +221,7 @@ export function WorkForm({ categories, initialData, action, submitLabel, redirec
                 </div>
               </div>
             )}
-            <WorkImageEditor images={initialData?.images ?? []} coverImageId={initialData?.cover_image_id ?? null} workId={initialData?.id ?? null} />
+            <WorkImageEditor key={saveVersion} images={initialData?.images ?? []} coverImageId={initialData?.cover_image_id ?? null} workId={initialData?.id ?? null} />
           </section>
 
           <section className="border-t border-ink/10 pt-7">
