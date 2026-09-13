@@ -28,12 +28,11 @@ export type SiteSettingsFormValues = z.infer<typeof siteSettingsSchema>;
 export const contactLinkSchema = z.object({
   platform: z.enum(KNOWN_CONTACT_PLATFORMS),
   label: z.string().trim().min(1, 'Укажите название').max(60),
-  url: z
-    .string()
-    .trim()
-    .min(1, 'Укажите ссылку')
-    .max(300)
-    .refine(isSafeHref, 'Ссылка должна начинаться с https://, tel:, mailto: или "/"'),
+  // Без ограничения на формат: сюда попадают и просто номера телефона
+  // ("89003617185"), которые затем нормализуются в tel: на сервере
+  // (см. normalizeContactUrl в lib/actions/settings.ts), и произвольные
+  // ссылки на мессенджеры/соцсети — админ сам отвечает за то, что вписывает.
+  url: z.string().trim().min(1, 'Укажите ссылку').max(300),
   is_visible: z.boolean().default(true),
   sort_order: z.coerce.number().int().default(0),
 });

@@ -5,8 +5,7 @@ import { updateSiteSettings } from '@/lib/actions/settings';
 import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
 import { FormStatus } from '@/components/ui/FormStatus';
-import { PhoneNumbersField } from './PhoneNumbersField';
-import type { SiteSettings, ContactLink } from '@/types/domain';
+import type { SiteSettings } from '@/types/domain';
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -21,7 +20,7 @@ function SubmitButton() {
   );
 }
 
-export function GeneralSettingsForm({ settings, phones }: { settings: SiteSettings | null; phones: ContactLink[] }) {
+export function GeneralSettingsForm({ settings }: { settings: SiteSettings | null }) {
   const [state, formAction] = useFormState(updateSiteSettings, null);
 
   return (
@@ -31,10 +30,7 @@ export function GeneralSettingsForm({ settings, phones }: { settings: SiteSettin
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <Input name="phone" label="Телефон (основной)" defaultValue={settings?.phone ?? ''} />
-          <p className="mt-1.5 text-xs text-espresso">Для футера и карточки в поиске. Показывается первым в списке на странице «Контакты».</p>
-          <div className="mt-4">
-            <PhoneNumbersField phones={phones} />
-          </div>
+          <p className="mt-1.5 text-xs text-espresso">Для футера и карточки в поиске. Номера для страницы «Контакты» добавляются в разделе «Способы связи».</p>
         </div>
         <Input name="email" type="email" label="Email" defaultValue={settings?.email ?? ''} />
       </div>
