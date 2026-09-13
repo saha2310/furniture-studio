@@ -9,6 +9,12 @@ import { FormStatus } from '@/components/ui/FormStatus';
 import { ConfirmDialog } from '@/components/admin/shared/ConfirmDialog';
 import { SocialIcon } from '@/components/layout/SocialIcon';
 import { KNOWN_CONTACT_PLATFORMS } from '@/types/domain';
+
+// Телефоны теперь добавляются отдельным виджетом в разделе «Основные»
+// (PhoneNumbersField) — здесь платформу «Телефон» специально не предлагаем,
+// чтобы созданная тут запись не «терялась» из виду (она физически попадёт
+// в тот же список contact_links, но показываться будет уже не здесь).
+const SELECTABLE_PLATFORMS = KNOWN_CONTACT_PLATFORMS.filter((p) => p !== 'phone');
 import type { ContactLink } from '@/types/domain';
 
 const PLATFORM_LABELS: Record<string, string> = {
@@ -44,7 +50,7 @@ function NewLinkForm() {
   return (
     <form action={formAction} className="flex flex-wrap items-end gap-3 rounded border border-stone/70 p-5">
       <Select name="platform" label="Платформа" defaultValue="telegram" onChange={(e) => setPlatform(e.target.value)}>
-        {KNOWN_CONTACT_PLATFORMS.map((p) => (
+        {SELECTABLE_PLATFORMS.map((p) => (
           <option key={p} value={p}>
             {PLATFORM_LABELS[p]}
           </option>
@@ -72,7 +78,7 @@ function LinkRow({ link }: { link: ContactLink }) {
     return (
       <form action={formAction} className="flex flex-wrap items-end gap-3 border-b border-stone/40 p-4">
         <Select name="platform" label="Платформа" defaultValue={link.platform} onChange={(e) => setPlatform(e.target.value)}>
-          {KNOWN_CONTACT_PLATFORMS.map((p) => (
+          {SELECTABLE_PLATFORMS.map((p) => (
             <option key={p} value={p}>
               {PLATFORM_LABELS[p]}
             </option>

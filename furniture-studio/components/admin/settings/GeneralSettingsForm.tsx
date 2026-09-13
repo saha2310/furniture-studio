@@ -5,7 +5,8 @@ import { updateSiteSettings } from '@/lib/actions/settings';
 import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
 import { FormStatus } from '@/components/ui/FormStatus';
-import type { SiteSettings } from '@/types/domain';
+import { PhoneNumbersField } from './PhoneNumbersField';
+import type { SiteSettings, ContactLink } from '@/types/domain';
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -20,7 +21,7 @@ function SubmitButton() {
   );
 }
 
-export function GeneralSettingsForm({ settings }: { settings: SiteSettings | null }) {
+export function GeneralSettingsForm({ settings, phones }: { settings: SiteSettings | null; phones: ContactLink[] }) {
   const [state, formAction] = useFormState(updateSiteSettings, null);
 
   return (
@@ -30,10 +31,10 @@ export function GeneralSettingsForm({ settings }: { settings: SiteSettings | nul
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <Input name="phone" label="Телефон (основной)" defaultValue={settings?.phone ?? ''} />
-          <p className="mt-1.5 text-xs text-espresso">
-            Один номер для футера и карточки в поиске. Чтобы показать несколько номеров на странице «Контакты» —
-            добавьте их ниже, в разделе «Способы связи», выбрав платформу «Телефон» для каждого.
-          </p>
+          <p className="mt-1.5 text-xs text-espresso">Для футера и карточки в поиске. Показывается первым в списке на странице «Контакты».</p>
+          <div className="mt-4">
+            <PhoneNumbersField phones={phones} />
+          </div>
         </div>
         <Input name="email" type="email" label="Email" defaultValue={settings?.email ?? ''} />
       </div>
