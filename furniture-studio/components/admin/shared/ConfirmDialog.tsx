@@ -9,9 +9,13 @@ interface ConfirmDialogProps {
   confirmLabel?: string;
   onConfirm: () => Promise<{ success: boolean; message: string }>;
   triggerClassName?: string;
+  // 'danger' (по умолчанию) — красная кнопка подтверждения, как и было,
+  // для необратимых действий (удаление). 'neutral' — нейтральная кнопка в
+  // цвет интерфейса, для обратимых действий (например, смена статуса).
+  tone?: 'danger' | 'neutral';
 }
 
-export function ConfirmDialog({ triggerLabel, title, description, confirmLabel = 'Удалить', onConfirm, triggerClassName = 'text-xs uppercase tracking-[0.12em] text-ink/50 hover:text-ink' }: ConfirmDialogProps) {
+export function ConfirmDialog({ triggerLabel, title, description, confirmLabel = 'Удалить', onConfirm, triggerClassName = 'text-xs uppercase tracking-[0.12em] text-ink/50 hover:text-ink', tone = 'danger' }: ConfirmDialogProps) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -46,7 +50,18 @@ export function ConfirmDialog({ triggerLabel, title, description, confirmLabel =
         {error && <p role="alert" className="mt-4 border border-red-300/20 bg-red-300/5 px-3 py-2 text-xs leading-5 text-red-200">{error}</p>}
         <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <button type="button" onClick={() => setOpen(false)} disabled={isPending} className="min-h-11 border border-ink/10 px-4 py-3 text-xs uppercase tracking-[0.12em] text-ink/55 hover:text-ink disabled:opacity-40">Отмена</button>
-          <button type="button" onClick={handleConfirm} disabled={isPending} className="min-h-11 border border-red-300/20 bg-red-300/10 px-4 py-3 text-xs uppercase tracking-[0.12em] text-red-100 hover:bg-red-300/15 disabled:opacity-40">{isPending ? 'Удаление…' : confirmLabel}</button>
+          <button
+            type="button"
+            onClick={handleConfirm}
+            disabled={isPending}
+            className={
+              tone === 'danger'
+                ? 'min-h-11 border border-red-300/20 bg-red-300/10 px-4 py-3 text-xs uppercase tracking-[0.12em] text-red-100 hover:bg-red-300/15 disabled:opacity-40'
+                : 'min-h-11 border border-ink/15 bg-ink px-4 py-3 text-xs uppercase tracking-[0.12em] text-canvas hover:bg-espresso disabled:opacity-40'
+            }
+          >
+            {isPending ? (tone === 'danger' ? 'Удаление…' : 'Сохраняем…') : confirmLabel}
+          </button>
         </div>
       </div>
     </div>}

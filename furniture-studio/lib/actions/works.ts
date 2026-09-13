@@ -430,3 +430,38 @@ export async function deleteWork(workId: string): Promise<ActionResult> {
   revalidatePath('/admin/works');
   return { success: true, message: 'Работа удалена' };
 }
+
+// Быстрое переключение статуса из карточки в списке (без открытия полной
+// формы редактирования) — используется в WorkStatusToggle, само действие
+// подтверждается на клиенте через ConfirmDialog, здесь только сама мутация.
+export async function toggleWorkStatus(workId: string, nextStatus: 'draft' | 'published'): Promise<ActionResult> {
+  try {
+    await requireUser();
+  } catch (e) {
+    if (isUnauthorizedError(e)) return { success: false, message: 'Требуется авторизация.' };
+    throw e;
+  }
+
+  if (nextStatus !== 'draft' && nextStatus !== 'published') {
+    return { success: false, message: 'Некорректный статус.' };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('works')
+    .update({ status: nextStatus })
+    .eq('id', workId)
+    .select('slug')
+    .maybeSingle();
+
+  if (error) {
+    console.error('toggleWorkStatus failed', error.message);
+    return { success: false, message: actionError('Не удалось изменить статус.', error) };
+  }
+
+  revalidatePath('/works');
+  revalidatePath('/favorites');
+  revalidatePath('/admin/works');
+  if (data?.slug) revalidatePath(`/works/${data.slug}`);
+  return { success: true, message: nextStatus === 'published' ? 'Работа опубликована' : 'Работа скрыта' };
+}

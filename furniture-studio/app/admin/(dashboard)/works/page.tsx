@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { getAllWorksAdmin } from '@/lib/queries/works';
-import { WorkTable } from '@/components/admin/works/WorkTable';
+import { WorkGrid } from '@/components/admin/works/WorkGrid';
 import { EmptyState } from '@/components/admin/shared/EmptyState';
 import { PageHeader } from '@/components/admin/shared/PageHeader';
 
@@ -13,8 +13,8 @@ export default async function AdminWorksPage() {
         title="Работы"
         description={`Всего: ${works.length}`}
         action={
-          <Link href="/admin/works/new" className="rounded bg-ink px-5 py-2.5 text-[15px] text-canvas hover:bg-espresso">
-            Добавить работу
+          <Link href="/admin/works/new" className="inline-flex items-center gap-1.5 rounded bg-ink px-5 py-2.5 text-[15px] text-canvas hover:bg-espresso">
+            <span aria-hidden="true">+</span> Добавить работу
           </Link>
         }
       />
@@ -23,7 +23,7 @@ export default async function AdminWorksPage() {
         {works.length === 0 ? (
           <EmptyState title="Работ пока нет" description="Добавьте первую работу, чтобы она появилась на сайте." />
         ) : (
-          <WorkTable works={works} />
+          <WorkGrid works={works} />
         )}
       </div>
     </div>
