@@ -5,6 +5,7 @@ import { Fragment, useEffect, useMemo, useRef, useState, useTransition } from 'r
 import { useRouter } from 'next/navigation';
 import type { WorkImageWithUrl } from '@/types/domain';
 import { ACCEPTED_IMAGE_TYPES, MAX_IMAGE_SIZE_BYTES } from '@/lib/utils/image';
+import { convertToWebp } from '@/lib/utils/image-client';
 import { createBrowserSupabaseClient } from '@/lib/supabase/browser';
 import { ImageCropDialog } from '@/components/admin/shared/ImageCropDialog';
 import { MediaLibraryPicker } from '@/components/admin/shared/MediaLibraryPicker';
@@ -83,10 +84,16 @@ export function WorkImageEditor({
   const visibleExisting = images.filter((image) => !deleted.includes(image.id));
 
   async function uploadToStorage(file: File): Promise<string> {
-    const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+    // Конвертация в WebP — обязательный шаг для ЛЮБОЙ загрузки, а не только
+    // когда админ открыл редактор кадрирования (тот тоже выдаёт WebP, но
+    // сам по себе опционален). Иначе фото, добавленные без кадрирования,
+    // так и остаются в Storage в исходном PNG/JPEG навсегда. См.
+    // lib/utils/image-client.ts.
+    const optimized = await convertToWebp(file);
+    const ext = optimized.name.split('.').pop()?.toLowerCase() || 'webp';
     const path = `${folderIdRef.current}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-    const { error: uploadError } = await supabaseBrowser.storage.from('works').upload(path, file, {
-      contentType: file.type,
+    const { error: uploadError } = await supabaseBrowser.storage.from('works').upload(path, optimized, {
+      contentType: optimized.type,
       cacheControl: '31536000',
     });
     if (uploadError) throw new Error(uploadError.message);

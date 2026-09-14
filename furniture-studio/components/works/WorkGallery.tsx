@@ -204,7 +204,32 @@ export function WorkGallery({ images, title }: { images: WorkImageWithUrl[]; tit
           </button>
         )}
         <div className="fixed inset-0 flex h-full w-full touch-none items-center justify-center overflow-hidden px-4 py-16 sm:px-8 sm:py-14" onDoubleClick={() => zoomTo(scale > 1 ? 1 : 2)} onWheel={onWheel} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp}>
-          <img src={images[activeIndex].url} alt={images[activeIndex].alt_text || title} draggable={false} onLoad={() => setLightboxImageReady(true)} className={`max-h-[calc(100vh-7rem)] max-w-[calc(100vw-2rem)] select-none object-contain transition-opacity duration-300 sm:max-h-[calc(100vh-6rem)] sm:max-w-[calc(100vw-4rem)] ${lightboxImageReady ? 'opacity-100' : 'opacity-0'}`} style={{ transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`, transition: drag.current ? 'none' : 'transform 180ms ease-out', cursor: scale > 1 ? 'grab' : 'zoom-in' }} />
+          {/*
+            Раньше здесь был голый <img> с прямой ссылкой на файл в Supabase
+            Storage — в обход next/image, а значит без переформатирования под
+            браузер и без учёта реального размера экрана: даже уже
+            оптимизированный WebP из галереи грузился заново, оригиналом,
+            именно в момент открытия полноэкранного просмотра — то есть там,
+            где вес файла ощущается сильнее всего. `next/image` с width/height
+            вместо `fill` — сознательный выбор: этому месту нужен контроль
+            размера через style (max-h/max-w + перетаскивание/зум трансформом),
+            а `fill` требует, чтобы контейнер сам знал свой размер, чего тут
+            нет. Задаём приблизительный квадратный intrinsic-размер как
+            подсказку для рассчёта исходников — реальный кадр всё равно
+            определяется через object-contain и className ниже.
+          */}
+          <Image
+            src={images[activeIndex].url}
+            alt={images[activeIndex].alt_text || title}
+            draggable={false}
+            onLoad={() => setLightboxImageReady(true)}
+            width={2400}
+            height={2400}
+            quality={90}
+            sizes="100vw"
+            className={`h-auto max-h-[calc(100vh-7rem)] w-auto max-w-[calc(100vw-2rem)] select-none object-contain transition-opacity duration-300 sm:max-h-[calc(100vh-6rem)] sm:max-w-[calc(100vw-4rem)] ${lightboxImageReady ? 'opacity-100' : 'opacity-0'}`}
+            style={{ transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`, transition: drag.current ? 'none' : 'transform 180ms ease-out', cursor: scale > 1 ? 'grab' : 'zoom-in' }}
+          />
         </div>
         <div className="absolute bottom-5 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 border border-white/15 bg-black/65 px-2 py-2 backdrop-blur">
           <button type="button" aria-label="Уменьшить" onClick={() => zoomTo(scale - 0.25)} className="h-9 w-9 text-lg text-white/80 hover:text-white">−</button>

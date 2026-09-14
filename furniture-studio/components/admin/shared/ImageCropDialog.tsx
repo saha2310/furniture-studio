@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { WEBP_QUALITY } from '@/lib/utils/image';
 
 export const IMAGE_RATIOS = [
   { label: 'Свободный', value: null },
@@ -198,7 +199,7 @@ export function ImageCropDialog({ sourceUrl, title = 'Редактор изоб�
       });
       ctx.drawImage(img, x, y, exportWidth, exportHeight);
 
-      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/webp', 0.9));
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/webp', WEBP_QUALITY));
       if (!blob) throw new Error('Не удалось создать новый файл');
       const file = new File([blob], `image-${Date.now()}.webp`, { type: 'image/webp' });
       onApply(file, URL.createObjectURL(blob));

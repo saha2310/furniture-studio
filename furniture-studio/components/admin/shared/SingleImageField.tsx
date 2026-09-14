@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { workImageUrl, siteAssetUrl, MAX_IMAGE_SIZE_BYTES } from '@/lib/utils/image';
+import { convertToWebp } from '@/lib/utils/image-client';
 import { ImageCropDialog } from './ImageCropDialog';
 import { MediaLibraryPicker } from './MediaLibraryPicker';
 import type { MediaAsset } from '@/lib/actions/media';
@@ -31,6 +32,7 @@ export function SingleImageField({
   const [showHelp, setShowHelp] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [mediaPath, setMediaPath] = useState<string | null>(null);
+  const [converting, setConverting] = useState(false);
   const objectUrlRef = useRef<string | null>(null);
 
   useEffect(() => () => { if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current); }, []);
@@ -57,18 +59,28 @@ export function SingleImageField({
     inputRef.current.files = dt.files;
   }
 
-  function choose(files: FileList | null) {
+  async function choose(files: FileList | null) {
     const next = files?.[0];
     if (!next) return;
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(next.type) || next.size > MAX_IMAGE_SIZE_BYTES) return;
-    if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
-    const url = URL.createObjectURL(next);
-    objectUrlRef.current = url;
-    setFile(next);
-    setInputFile(next);
-    setPreviewUrl(url);
-    setRemove(false);
-    setMediaPath(null);
+    setInputFile(null); // сразу очищаем реальный input, пока идёт конвертация — не отправить сырой файл при преждевременном сабмите
+    setConverting(true);
+    try {
+      // Конвертация в WebP обязательна для любой загрузки, не только через
+      // редактор кадрирования (тот тоже выдаёт WebP, но сам опционален) —
+      // см. lib/utils/image-client.ts.
+      const optimized = await convertToWebp(next);
+      if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+      const url = URL.createObjectURL(optimized);
+      objectUrlRef.current = url;
+      setFile(optimized);
+      setInputFile(optimized);
+      setPreviewUrl(url);
+      setRemove(false);
+      setMediaPath(null);
+    } finally {
+      setConverting(false);
+    }
   }
 
   function openEditor() {
@@ -108,12 +120,13 @@ export function SingleImageField({
         {currentUrl ? <img src={currentUrl} alt="Предпросмотр" className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-xs text-ink/35">Изображение не выбрано</div>}
       </div>
 
-      {file && <p className="mt-3 text-[11px] leading-5 text-ink/70">Новое изображение подготовлено. Оно ещё не сохранено — нажмите кнопку сохранения этой формы.</p>}
+      {converting && <p className="mt-3 text-[11px] leading-5 text-ink/70">Оптимизируем изображение…</p>}
+      {!converting && file && <p className="mt-3 text-[11px] leading-5 text-ink/70">Новое изображение подготовлено. Оно ещё не сохранено — нажмите кнопку сохранения этой формы.</p>}
 
       <div className="mt-3 flex flex-wrap gap-2">
-        <label className="cursor-pointer border border-ink/15 px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-ink/75 hover:border-ink/40 hover:text-ink">
+        <label className={`border border-ink/15 px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-ink/75 hover:border-ink/40 hover:text-ink ${converting ? 'pointer-events-none opacity-50' : 'cursor-pointer'}`}>
           {currentUrl ? 'Заменить' : 'Выбрать'}
-          <input ref={inputRef} type="file" name={fieldName} accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(e) => choose(e.target.files)} />
+          <input ref={inputRef} type="file" name={fieldName} disabled={converting} accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(e) => choose(e.target.files)} />
         </label>
         <button type="button" onClick={() => setLibraryOpen(true)} className="border border-ink/15 px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-ink/75 hover:border-ink/40 hover:text-ink">
           Открыть галерею

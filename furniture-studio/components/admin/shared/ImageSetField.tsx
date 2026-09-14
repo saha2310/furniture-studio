@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react';
 import { siteAssetUrl, workImageUrl, MAX_IMAGE_SIZE_BYTES } from '@/lib/utils/image';
+import { convertToWebp } from '@/lib/utils/image-client';
 import { MediaLibraryPicker } from './MediaLibraryPicker';
 
 type Slot = { kind: 'existing'; path: string; bucket: 'works' | 'site' } | { kind: 'new'; id: string; file: File; url: string };
@@ -32,6 +33,7 @@ export function ImageSetField({
 }) {
   const [slots, setSlots] = useState<Slot[]>(existing.map((item) => ({ kind: 'existing', path: item.path, bucket: item.bucket })));
   const [libraryOpen, setLibraryOpen] = useState(false);
+  const [converting, setConverting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const urlOf = (slot: Slot) => (slot.kind === 'new' ? slot.url : slot.bucket === 'works' ? workImageUrl(slot.path) : siteAssetUrl(slot.path));
@@ -47,16 +49,27 @@ export function ImageSetField({
     setFileInput(nextSlots.filter((s): s is Extract<Slot, { kind: 'new' }> => s.kind === 'new').map((s) => s.file));
   }
 
-  function addFiles(list: FileList | null) {
+  async function addFiles(list: FileList | null) {
     if (!list) return;
     const room = max - slots.length;
     if (room <= 0) return;
     const incoming = Array.from(list).slice(0, room);
     const valid = incoming.filter((f) => ['image/jpeg', 'image/png', 'image/webp'].includes(f.type) && f.size <= MAX_IMAGE_SIZE_BYTES);
-    const added: Slot[] = valid.map((file) => ({ kind: 'new', id: crypto.randomUUID(), file, url: URL.createObjectURL(file) }));
-    const next = [...slots, ...added];
-    setSlots(next);
-    syncFileInput(next);
+    if (!valid.length) return;
+    setConverting(true);
+    try {
+      // Как и в остальных полях загрузки — конвертация в WebP обязательна
+      // для любого файла, попадающего в эту галерею. См. lib/utils/image-client.ts.
+      const optimized = await Promise.all(valid.map((file) => convertToWebp(file)));
+      const added: Slot[] = optimized.map((file) => ({ kind: 'new', id: crypto.randomUUID(), file, url: URL.createObjectURL(file) }));
+      setSlots((prev) => {
+        const next = [...prev, ...added];
+        syncFileInput(next);
+        return next;
+      });
+    } finally {
+      setConverting(false);
+    }
   }
 
   function addFromLibrary(asset: { bucket: 'works' | 'site'; path: string }) {
@@ -113,11 +126,15 @@ export function ImageSetField({
 
         {slots.length < max && (
           <div className="flex aspect-[4/3] flex-col items-center justify-center gap-2 border border-dashed border-ink/20 text-center">
-            <label className="cursor-pointer px-3 py-1.5 text-[10px] uppercase tracking-[0.1em] text-ink/70 hover:text-ink">
-              Загрузить
-              <input type="file" accept="image/jpeg,image/png,image/webp" multiple className="sr-only" onChange={(e) => addFiles(e.target.files)} />
-            </label>
-            <button type="button" onClick={() => setLibraryOpen(true)} className="px-3 py-1.5 text-[10px] uppercase tracking-[0.1em] text-ink/70 hover:text-ink">
+            {converting ? (
+              <span className="px-3 py-1.5 text-[10px] uppercase tracking-[0.1em] text-ink/50">Оптимизируем…</span>
+            ) : (
+              <label className="cursor-pointer px-3 py-1.5 text-[10px] uppercase tracking-[0.1em] text-ink/70 hover:text-ink">
+                Загрузить
+                <input type="file" accept="image/jpeg,image/png,image/webp" multiple className="sr-only" onChange={(e) => addFiles(e.target.files)} />
+              </label>
+            )}
+            <button type="button" onClick={() => setLibraryOpen(true)} disabled={converting} className="px-3 py-1.5 text-[10px] uppercase tracking-[0.1em] text-ink/70 hover:text-ink disabled:opacity-40">
               Из медиатеки
             </button>
           </div>

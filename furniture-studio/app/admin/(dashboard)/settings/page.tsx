@@ -4,6 +4,7 @@ import { AssetUploadForm } from '@/components/admin/settings/AssetUploadForm';
 import { MenuManager } from '@/components/admin/settings/MenuManager';
 import { SocialLinksManager } from '@/components/admin/settings/SocialLinksManager';
 import { BackupPanel } from '@/components/admin/backup/BackupPanel';
+import { WebpMigrationPanel } from '@/components/admin/media/WebpMigrationPanel';
 import { PageHeader } from '@/components/admin/shared/PageHeader';
 import { AdminSection } from '@/components/admin/shared/AdminSection';
 
@@ -15,5 +16,6 @@ export default async function AdminSettingsPage() {
     <AdminSection title="Меню сайта" description="Название, адрес, порядок и видимость пунктов публичного меню."><MenuManager items={menu} /></AdminSection>
     <AdminSection title="Способы связи" description="Telegram, WhatsApp, VK, телефоны и другие контакты, которые показываются на сайте."><SocialLinksManager links={contactLinks} /></AdminSection>
     <AdminSection title="Резервные копии" description="Экспорт и импорт каталога и настроек сайта одним файлом."><BackupPanel /></AdminSection>
+    <AdminSection title="Перевод изображений в WebP" description="Разовый перенос уже загруженных PNG/JPEG в WebP (кроме логотипа)."><WebpMigrationPanel /></AdminSection>
   </div></div>;
 }
