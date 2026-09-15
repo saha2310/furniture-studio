@@ -154,7 +154,7 @@ export function WorkCard({
               <span className="h-3 w-px bg-ink/15" />
               <Link
                 href={activeHref}
-                className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-[0.12em] text-ink/65 transition-transform duration-500 hover:text-ink group-hover:translate-x-1"
+                className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-[0.12em] text-emerald-400/90 transition-transform duration-500 hover:text-emerald-300 group-hover:translate-x-1"
               >
                 Смотреть <span aria-hidden="true">→</span>
               </Link>
@@ -168,29 +168,49 @@ export function WorkCard({
   }
 
   return (
-    <article className="group border border-ink/10 bg-surface">
-      <div className="relative">
-        <Link href={activeHref} className="block">
-          <div className="relative aspect-[4/3] overflow-hidden bg-surface">
-            {activeImage ? <Image src={activeImage.url} alt={activeImage.alt_text || work.title} fill priority={priority} sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" className="object-cover transition-transform duration-700 ease-out group-hover:scale-[1.035]" /> : <div className="flex h-full items-center justify-center text-sm text-ink/45">Нет фото</div>}
-            <div className="absolute inset-0 bg-[linear-gradient(to_top,rgb(var(--photo-mist)/0.45),transparent,transparent)]" />
-          </div>
-        </Link>
-        <FavoriteButton workId={work.id} size="sm" className="absolute right-3 top-3 z-20" />
-      </div>
-      <div className="p-5 sm:p-6">
-        <div className="flex items-center gap-3 text-[10px] uppercase tracking-[0.16em] text-ink/50"><span>{String(work.sort_order + 1).padStart(2, '0')}</span><span className="h-px flex-1 bg-ink/10" /><span>{work.category?.name}</span></div>
-        <div className="mt-7 flex items-start justify-between gap-5">
-          <div className="min-w-0">
+    <>
+      <article className="group border border-ink/10 bg-surface">
+        <div className="relative">
+          <Link href={activeHref} className="block">
+            <div className="relative aspect-[4/3] overflow-hidden bg-surface">
+              {activeImage ? <Image src={activeImage.url} alt={activeImage.alt_text || work.title} fill priority={priority} sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" className="object-cover transition-transform duration-700 ease-out group-hover:scale-[1.035]" /> : <div className="flex h-full items-center justify-center text-sm text-ink/45">Нет фото</div>}
+              <div className="absolute inset-0 bg-[linear-gradient(to_top,rgb(var(--photo-mist)/0.45),transparent,transparent)]" />
+            </div>
+          </Link>
+          <FavoriteButton workId={work.id} size="sm" className="absolute right-3 top-3 z-20" />
+        </div>
+        <div className="p-5 sm:p-6">
+          <div className="flex items-center gap-3 text-[10px] uppercase tracking-[0.16em] text-ink/50"><span>{String(work.sort_order + 1).padStart(2, '0')}</span><span className="h-px flex-1 bg-ink/10" /><span>{work.category?.name}</span></div>
+          <div className="mt-7">
             <div className="min-h-[3.4rem]">
               <Link href={activeHref} className="line-clamp-2 text-[19px] leading-snug tracking-[-0.02em] text-ink hover:text-ink/80">{work.title}</Link>
             </div>
             {work.price && <p className="mt-2 text-[12px] text-ink/90">{work.price}</p>}
             <ColorSwatches variants={work.colorVariants} activeId={active.id} onSelect={setActive} />
           </div>
-          <Link href={activeHref} className="shrink-0 pt-1 text-[11px] uppercase tracking-[0.12em] text-ink/65 transition-transform duration-500 group-hover:translate-x-1 group-hover:text-ink">Смотреть →</Link>
+          {/* Быстрый просмотр (drawer) слева, ссылка на страницу товара справа —
+              разделены вертикальной чертой, как в journal-варианте, чтобы у
+              обоих действий был вертикальный воздух от свотчей сверху. */}
+          <div className="mt-4 flex items-center gap-4 border-t border-ink/10 pt-4">
+            <button
+              type="button"
+              onClick={(e) => { e.preventDefault(); setPreviewOpen(true); }}
+              className="text-[11px] uppercase tracking-[0.12em] text-ink/65 transition hover:text-ink"
+            >
+              Быстрый просмотр
+            </button>
+            <span className="h-3 w-px bg-ink/15" />
+            <Link
+              href={activeHref}
+              className="shrink-0 whitespace-nowrap text-[11px] uppercase tracking-[0.12em] text-emerald-400/90 transition-colors hover:text-emerald-300"
+            >
+              Смотреть →
+            </Link>
+          </div>
         </div>
-      </div>
-    </article>
+      </article>
+
+      <WorkPreviewDrawer work={work} initialActiveId={active.id} open={previewOpen} onClose={() => setPreviewOpen(false)} />
+    </>
   );
 }
