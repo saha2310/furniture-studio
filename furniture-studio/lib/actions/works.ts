@@ -512,6 +512,45 @@ export async function detachWorkFromGroup(workId: string): Promise<ActionResult>
   return { success: true, message: 'Товар откреплён и стал отдельной карточкой' };
 }
 
+// Обратная операция к detachWorkFromGroup: прикрепить уже существующий
+// самостоятельный товар (group_id === его собственный id) как ещё один
+// цветовой вариант к группе targetGroupId. Раньше единственным способом
+// добавить цвет было «+ Новый цвет», создающее товар с нуля — если админ
+// по ошибке уже успел создать его отдельной карточкой, приходилось удалять
+// и пересоздавать. Вызывающая сторона (getStandaloneWorksAdmin) уже
+// отфильтровывает кандидатов до «ни к кому не привязанных», но проверяем
+// это ещё раз на сервере — на случай, если список на клиенте успел устареть,
+// иначе можно случайно слить две уже готовые группы цветов в одну.
+export async function attachWorkToGroup(workId: string, targetGroupId: string): Promise<ActionResult> {
+  try {
+    await requireUser();
+  } catch (e) {
+    if (isUnauthorizedError(e)) return { success: false, message: 'Требуется авторизация.' };
+    throw e;
+  }
+
+  if (workId === targetGroupId) return { success: false, message: 'Товар не может быть цветом самого себя.' };
+
+  const supabase = await createClient();
+
+  const { data: current, error: currentError } = await supabase.from('works').select('id, group_id, category_id').eq('id', workId).maybeSingle();
+  if (currentError || !current) return { success: false, message: 'Работа не найдена.' };
+  if (current.group_id !== workId) return { success: false, message: 'Этот товар уже привязан к другой группе цветов — сначала открепите его.' };
+
+  const { data: target, error: targetError } = await supabase.from('works').select('id, category_id').eq('id', targetGroupId).maybeSingle();
+  if (targetError || !target) return { success: false, message: 'Целевая группа не найдена.' };
+  if (target.category_id !== current.category_id) return { success: false, message: 'Варианты одного товара должны быть в одной категории.' };
+
+  const { error } = await supabase.from('works').update({ group_id: targetGroupId, is_primary: false }).eq('id', workId);
+  if (error) return { success: false, message: actionError('Не удалось прикрепить товар как цвет.', error) };
+
+  revalidatePath('/works');
+  revalidatePath('/admin/works');
+  revalidatePath(`/admin/works/${targetGroupId}`);
+  revalidatePath(`/admin/works/${workId}`);
+  return { success: true, message: 'Товар добавлен как цветовой вариант' };
+}
+
 // Быстрое переключение статуса из карточки в списке (без открытия полной
 // формы редактирования) — используется в WorkStatusToggle, само действие
 // подтверждается на клиенте через ConfirmDialog, здесь только сама мутация.

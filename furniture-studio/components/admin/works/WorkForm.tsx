@@ -12,7 +12,7 @@ import { FormStatus } from '@/components/ui/FormStatus';
 import { SaveBar } from '@/components/admin/shared/SaveBar';
 import { ConfirmDialog } from '@/components/admin/shared/ConfirmDialog';
 import { slugify } from '@/lib/utils/slug';
-import { deleteWork, detachWorkFromGroup, type ActionResult } from '@/lib/actions/works';
+import { deleteWork, detachWorkFromGroup, attachWorkToGroup, type ActionResult } from '@/lib/actions/works';
 import type { Category, WorkWithUrls } from '@/types/domain';
 import { WorkImageEditor } from './WorkImageEditor';
 
@@ -28,6 +28,10 @@ interface WorkFormProps {
   groupId?: string;
   prefillTitle?: string;
   prefillCategoryId?: string;
+  // Самостоятельные товары той же категории, ещё не привязанные ни к одной
+  // группе цветов — кандидаты для «+ Существующий товар». Только для
+  // редактирования: при создании нового товара прикреплять пока нечего.
+  attachCandidates?: WorkWithUrls[];
 }
 
 function SaveButton({ label, busy }: { label: string; busy?: boolean }) {
@@ -53,6 +57,78 @@ function StatusPill({ published }: { published: boolean }) {
   );
 }
 
+// «+ Существующий товар» — обратная операция к «Открепить»: берёт уже
+// созданный самостоятельный товар (никому пока не приходится удалять и
+// пересоздавать, если цвет по ошибке успели сохранить отдельной карточкой)
+// и делает его цветовым вариантом текущей группы через attachWorkToGroup.
+function AttachExistingPicker({ groupId, candidates }: { groupId: string; candidates: WorkWithUrls[] }) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [pendingId, setPendingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  if (candidates.length === 0) return null;
+
+  const filtered = candidates.filter((c) => c.title.toLowerCase().includes(query.trim().toLowerCase()));
+
+  async function handleAttach(id: string) {
+    setPendingId(id);
+    setError(null);
+    const result = await attachWorkToGroup(id, groupId);
+    setPendingId(null);
+    if (result.success) {
+      setOpen(false);
+      router.refresh();
+    } else {
+      setError(result.message);
+    }
+  }
+
+  return (
+    <div className="relative ml-auto shrink-0">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="px-2 text-[9px] uppercase tracking-[0.14em] text-ink/50 hover:text-ink"
+      >
+        + Существующий товар
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full z-20 mt-2 w-64 border border-ink/15 bg-canvas p-2 shadow-lg">
+          <input
+            autoFocus
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Поиск по названию…"
+            className="h-8 w-full border border-ink/10 bg-surface px-2 text-xs text-ink placeholder:text-ink/30 focus:border-ink/30"
+          />
+          <div className="mt-2 max-h-56 overflow-y-auto">
+            {filtered.length === 0 ? (
+              <p className="px-1 py-3 text-xs text-ink/40">Ничего не найдено — только товары без цвета, не входящие в другую группу.</p>
+            ) : (
+              filtered.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  disabled={pendingId === c.id}
+                  onClick={() => handleAttach(c.id)}
+                  className="flex w-full items-center gap-2 px-1 py-1.5 text-left text-xs text-ink/75 hover:bg-ink/5 hover:text-ink disabled:opacity-50"
+                >
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-full border border-ink/15" style={{ backgroundColor: c.color_hex || DEFAULT_SWATCH_HEX }} />
+                  <span className="truncate">{c.title}</span>
+                  {pendingId === c.id && <span className="ml-auto shrink-0 text-[10px] text-ink/40">…</span>}
+                </button>
+              ))
+            )}
+          </div>
+          {error && <p className="mt-1 px-1 text-[10px] text-red-300">{error}</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function VariantBar({
   currentId,
   currentTitle,
@@ -61,6 +137,7 @@ function VariantBar({
   siblings,
   groupId,
   categoryId,
+  attachCandidates = [],
 }: {
   currentId?: string;
   currentTitle: string;
@@ -69,6 +146,7 @@ function VariantBar({
   siblings: WorkWithUrls[];
   groupId?: string;
   categoryId?: string;
+  attachCandidates?: WorkWithUrls[];
 }) {
   const router = useRouter();
   if (siblings.length === 0 && !groupId) return null;
@@ -159,12 +237,13 @@ function VariantBar({
           />
         </span>
       ))}
-      <Link href={addHref} className="ml-auto shrink-0 px-2 text-[9px] uppercase tracking-[0.14em] text-ink/50 hover:text-ink">+ Новый цвет</Link>
+      <Link href={addHref} className={`shrink-0 px-2 text-[9px] uppercase tracking-[0.14em] text-ink/50 hover:text-ink ${attachCandidates.length === 0 ? 'ml-auto' : ''}`}>+ Новый цвет</Link>
+      {groupId && <AttachExistingPicker groupId={groupId} candidates={attachCandidates} />}
     </div>
   );
 }
 
-export function WorkForm({ categories, initialData, action, submitLabel, redirectToDetailOnSuccess, colorVariants = [], groupId, prefillTitle, prefillCategoryId }: WorkFormProps) {
+export function WorkForm({ categories, initialData, action, submitLabel, redirectToDetailOnSuccess, colorVariants = [], groupId, prefillTitle, prefillCategoryId, attachCandidates = [] }: WorkFormProps) {
   const router = useRouter();
   const [state, formAction] = useFormState(action, null);
   const [title, setTitle] = useState(initialData?.title ?? prefillTitle ?? '');
@@ -250,7 +329,7 @@ export function WorkForm({ categories, initialData, action, submitLabel, redirec
         </div>
       </div>
 
-      <VariantBar currentId={initialData?.id} currentTitle={title} currentColorName={colorName} currentColorHex={colorHex} siblings={colorVariants} groupId={effectiveGroupId} categoryId={categoryId} />
+      <VariantBar currentId={initialData?.id} currentTitle={title} currentColorName={colorName} currentColorHex={colorHex} siblings={colorVariants} groupId={effectiveGroupId} categoryId={categoryId} attachCandidates={attachCandidates} />
 
       <div className="mt-5 grid gap-7 xl:grid-cols-[minmax(0,1fr)_310px]">
         <div className="min-w-0 space-y-8">

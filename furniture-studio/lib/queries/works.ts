@@ -333,6 +333,30 @@ export async function getWorkGroupVariantsAdmin(groupId: string, excludeId?: str
   return (data ?? []).map(attachUrls);
 }
 
+// Для «+ Существующий товар» в VariantBar: самостоятельные товары той же
+// категории, ещё не состоящие ни в чьей группе цветов (group_id === id —
+// то же условие, что использует detachWorkFromGroup/триггер по умолчанию).
+// Само условие "не в группе" защищает от случайного слияния двух уже
+// готовых групп друг с другом через этот пикер.
+export async function getStandaloneWorksAdmin(categoryId: string, excludeId?: string): Promise<WorkWithUrls[]> {
+  await requireUser();
+  const supabase = await createClient();
+  let query = supabase
+    .from('works')
+    .select(WORK_SELECT)
+    .eq('category_id', categoryId)
+    .order('sort_order', { ascending: true });
+  if (excludeId) query = query.neq('id', excludeId);
+  const { data, error } = await query;
+  if (error) {
+    console.error('getStandaloneWorksAdmin failed', error.message);
+    return [];
+  }
+  // group_id === id значит «сам себе группа», то есть товар пока ни к кому
+  // не привязан как цветовой вариант.
+  return (data ?? []).map(attachUrls).filter((work) => work.group_id === work.id);
+}
+
 export async function getAllWorkSlugs(): Promise<string[]> {
   const supabase = createStaticClient();
   const { data } = await supabase.from('works').select('slug').eq('status', 'published');

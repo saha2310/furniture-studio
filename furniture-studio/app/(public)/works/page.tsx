@@ -26,6 +26,13 @@ export default async function WorksPage({ searchParams }: { searchParams: { cate
   if (colorHex) nextParams.set('color', colorHex);
   const nextHref = hasMore ? `/works?${nextParams.toString()}` : undefined;
 
+  const prevParams = new URLSearchParams();
+  if (page > 1) prevParams.set('page', String(page - 1));
+  if (categorySlug) prevParams.set('category', categorySlug);
+  if (colorHex) prevParams.set('color', colorHex);
+  const prevQuery = prevParams.toString();
+  const prevHref = page > 1 ? (prevQuery ? `/works?${prevQuery}` : '/works') : undefined;
+
   return (
     <div className="pt-[82px]">
       <section className="container-studio border-b border-ink/10 pt-20 lg:pt-28 pb-10 lg:pb-12">
@@ -48,7 +55,7 @@ export default async function WorksPage({ searchParams }: { searchParams: { cate
         </div>
       </section>
       <section className="container-studio pt-6 pb-12 lg:pt-8 lg:pb-16">
-        <WorksGrid works={works} nextHref={nextHref} />
+        <WorksGrid works={works} nextHref={nextHref} prevHref={prevHref} />
       </section>
     </div>
   );
