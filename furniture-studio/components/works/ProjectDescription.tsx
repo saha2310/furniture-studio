@@ -25,7 +25,7 @@ export function ProjectDescription({ text }: { text: string }) {
   if (!cleaned) return null;
 
   return (
-    <div className="mt-8 min-w-0 max-w-[48rem] border-l border-ink/20 pl-4 sm:pl-5">
+    <div className="mt-6 min-w-0 max-w-[48rem] border-l border-ink/20 pl-4 sm:pl-5">
       <div
         className={expanded
           ? 'max-h-40 overflow-y-auto overscroll-contain pr-3 text-sm leading-6 text-ink/78 [scrollbar-color:rgb(var(--color-ink)/.28)_transparent] [scrollbar-width:thin] sm:max-h-44'

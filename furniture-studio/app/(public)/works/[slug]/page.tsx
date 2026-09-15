@@ -7,6 +7,7 @@ import { WorkGallery } from '@/components/works/WorkGallery';
 import { ProjectDescription } from '@/components/works/ProjectDescription';
 import { WorkSpecs } from '@/components/works/WorkSpecs';
 import { FavoriteButton } from '@/components/favorites/FavoriteButton';
+import { ShareButton } from '@/components/works/ShareButton';
 
 function cleanMetaDescription(value: string): string {
   const cut = value.search(/<\s*(?:main|html|body)\b/i);
@@ -53,23 +54,26 @@ export default async function WorkPage({ params }: Props) {
       </section>
 
       <section className="border-b border-ink/10 bg-surface">
-        <div className="grid min-w-0 lg:grid-cols-[76px,minmax(0,1.65fr),minmax(360px,.95fr)]">
-          <div className="hidden border-r border-ink/10 py-10 lg:flex lg:flex-col lg:items-center lg:justify-between">
+        <div className="grid min-w-0 lg:grid-cols-[64px,minmax(0,1.45fr),minmax(340px,1.05fr)]">
+          <div className="hidden border-r border-ink/10 py-6 lg:flex lg:flex-col lg:items-center lg:justify-between">
             <span className="text-3xl tracking-[-0.04em]">01</span>
             <div className="flex flex-col items-center gap-4 text-stone"><span>↑</span><span className="h-20 w-px bg-ink/10" /><span>↓</span></div>
           </div>
-          <div className="min-w-0 border-b border-ink/10 p-6 lg:border-b-0 lg:border-r lg:p-10">
+          <div className="min-w-0 border-b border-ink/10 p-5 lg:border-b-0 lg:border-r lg:p-7">
             <WorkGallery images={work.images} title={work.title} />
           </div>
-          <div className="p-8 sm:p-10 lg:p-14">
+          <div className="p-6 sm:p-7 lg:p-10">
             <p className="eyebrow">проект</p>
-            <div className="mt-5 flex items-start justify-between gap-4">
+            <div className="mt-4 flex items-start justify-between gap-4">
               <h2 className="min-w-0 text-[clamp(2.4rem,4vw,4.2rem)] leading-[.95] tracking-[-.045em]">{work.title}</h2>
-              <FavoriteButton workId={work.id} className="shrink-0" />
+              <div className="flex shrink-0 items-center gap-2">
+                <FavoriteButton workId={work.id} />
+                <ShareButton title={work.title} />
+              </div>
             </div>
-            <p className="mt-5 text-sm text-espresso">{work.category?.name}</p>{work.price && <p className="mt-3 text-sm text-ink">{work.price}</p>}
+            <p className="mt-4 text-sm text-espresso">{work.category?.name}</p>{work.price && <p className="mt-2 text-sm text-ink">{work.price}</p>}
             {work.colorVariants.length > 1 && (
-              <div className="mt-6" role="group" aria-label="Выбор цвета">
+              <div className="mt-5" role="group" aria-label="Выбор цвета">
                 <p className="eyebrow mb-3">цвет{work.color_name ? `: ${work.color_name}` : ''}</p>
                 <div className="flex flex-wrap gap-2.5">
                   {work.colorVariants.map((variant) => (
@@ -89,8 +93,8 @@ export default async function WorkPage({ params }: Props) {
               </div>
             )}
             {work.description && <ProjectDescription text={work.description} />}
-            <div className="mt-12"><WorkSpecs specs={work.specs} /></div>
-            <Link href="/contacts" className="group reference-button mt-12">Обсудить похожий проект <span className="transition-transform duration-300 group-hover:translate-x-1">→</span></Link>
+            <div className="mt-8"><WorkSpecs specs={work.specs} /></div>
+            <Link href="/contacts" className="group reference-button mt-8">Обсудить похожий проект <span className="transition-transform duration-300 group-hover:translate-x-1">→</span></Link>
           </div>
         </div>
       </section>

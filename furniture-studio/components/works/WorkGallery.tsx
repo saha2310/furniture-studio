@@ -155,7 +155,7 @@ export function WorkGallery({ images, title }: { images: WorkImageWithUrl[]; tit
   return (
     <div>
       <div className="group relative min-w-0 overflow-hidden bg-surface">
-        <div className="relative aspect-[4/3] cursor-zoom-in overflow-hidden lg:aspect-auto lg:h-[clamp(520px,48vw,760px)]" onClick={openLightbox}>
+        <div className="relative aspect-[3/2] cursor-zoom-in overflow-hidden lg:aspect-[16/10]" onClick={openLightbox}>
           <div className="absolute inset-0 flex" style={{ transform: `translateX(-${trackIndex * 100}%)`, transition: transition ? 'transform 600ms cubic-bezier(.2,.7,.2,1)' : 'none' }} onTransitionEnd={handleTrackEnd}>
             {slides.map((img, index) => <div className="relative h-full w-full shrink-0 grow-0 basis-full" key={`${img.id}-${index}`}><Image src={img.url} alt={img.alt_text || title} fill priority={index === trackIndex} sizes="(min-width: 1024px) 55vw, 100vw" className="object-cover" /></div>)}
           </div>
