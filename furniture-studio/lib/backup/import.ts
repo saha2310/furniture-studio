@@ -8,6 +8,29 @@ import { backupManifestSchema, getSectionImagePath, type BackupManifest, type Im
 
 const NIL_UUID = '00000000-0000-0000-0000-000000000000';
 
+/**
+ * Ограниченный по конкурентности map — без него импорт архива с десятками фото
+ * (как бэкап каталога дивана на 12 товаров/~30 фото) легко превышает
+ * maxDuration=60s Route Handler'а (app/admin/api/backup/import/route.ts):
+ * при полностью последовательной обработке это, например, 80+ сетевых
+ * запросов к Supabase подряд. Функция обрывается по таймауту, а браузер
+ * видит это как голый "Failed to fetch" — без внятного сообщения об ошибке.
+ * limit подобран консервативно: это разовая админская операция на маленьком
+ * проекте, не нужно упираться в rate limit ради выигрыша в доли секунды.
+ */
+async function mapWithConcurrency<T, R>(items: T[], limit: number, fn: (item: T, index: number) => Promise<R>): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let cursor = 0;
+  async function worker() {
+    while (cursor < items.length) {
+      const i = cursor++;
+      results[i] = await fn(items[i], i);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, () => worker()));
+  return results;
+}
+
 function guessContentType(path: string): string {
   const ext = path.split('.').pop()?.toLowerCase();
   if (ext === 'png') return 'image/png';
@@ -68,7 +91,7 @@ async function importAsNew(supabase: SupabaseClient<Database>, manifest: BackupM
   const categoryIdMap = new Map<string, string>();
   const suffix = Date.now().toString(36);
 
-  for (const category of manifest.categories) {
+  const categoryResults = await mapWithConcurrency(manifest.categories, 5, async (category) => {
     let newImagePath: string | null = null;
     if (category.image_path) {
       const ext = category.image_path.split('.').pop() || 'webp';
@@ -82,15 +105,30 @@ async function importAsNew(supabase: SupabaseClient<Database>, manifest: BackupM
       .select('id')
       .single();
     if (error || !data) throw new Error(`Не удалось добавить категорию «${category.name}»: ${error?.message ?? 'нет ответа от базы'}`);
-    categoryIdMap.set(category.id, data.id);
+    return [category.id, data.id] as const;
+  });
+  for (const [oldId, newId] of categoryResults) categoryIdMap.set(oldId, newId);
+
+  // Цветовые варианты должны попасть в ОДНУ группу и после импорта — несколько
+  // строк works с разными id могут делить один group_id из архива. Ключ карты —
+  // старый group_id (а если его в архиве нет — старый id самого товара, то есть
+  // товар без вариантов просто получает собственную новую группу). Резолвится
+  // синхронно (без await между чтением и записью), поэтому безопасно даже при
+  // конкурентной обработке нескольких товаров сразу.
+  const groupIdMap = new Map<string, string>();
+  function resolveNewGroupId(work: BackupManifest['works'][number]): string {
+    const oldGroupKey = work.group_id ?? work.id;
+    let newGroupId = groupIdMap.get(oldGroupKey);
+    if (!newGroupId) {
+      newGroupId = randomUUID();
+      groupIdMap.set(oldGroupKey, newGroupId);
+    }
+    return newGroupId;
   }
 
-  let importedWorks = 0;
-  let importedImages = 0;
-
-  for (const work of manifest.works) {
+  const workResults = await mapWithConcurrency(manifest.works, 4, async (work) => {
     const newCategoryId = categoryIdMap.get(work.category_id);
-    if (!newCategoryId) continue; // категория из архива не создалась — пропускаем товар, не валим весь импорт
+    if (!newCategoryId) return { imported: false, images: 0 }; // категория из архива не создалась — пропускаем товар, не валим весь импорт
 
     const { data: workRow, error: workError } = await supabase
       .from('works')
@@ -104,14 +142,17 @@ async function importAsNew(supabase: SupabaseClient<Database>, manifest: BackupM
         is_featured: work.is_featured,
         sort_order: work.sort_order,
         status: work.status,
+        group_id: resolveNewGroupId(work),
+        color_name: work.color_name ?? null,
+        color_hex: work.color_hex ?? null,
+        is_primary: work.is_primary,
       })
       .select('id')
       .single();
-    if (workError || !workRow) continue;
-    importedWorks += 1;
+    if (workError || !workRow) return { imported: false, images: 0 };
 
     let newCoverImageId: string | null = null;
-    for (const image of work.images) {
+    const imageResults = await mapWithConcurrency(work.images, 4, async (image) => {
       const ext = image.storage_path.split('.').pop() || 'webp';
       const newPath = `${workRow.id}/${randomUUID()}.${ext}`;
       await uploadFromZip(supabase, zip, 'works', `images/works/${image.storage_path}`, newPath, skipped);
@@ -121,15 +162,21 @@ async function importAsNew(supabase: SupabaseClient<Database>, manifest: BackupM
         .insert({ work_id: workRow.id, storage_path: newPath, alt_text: image.alt_text, sort_order: image.sort_order })
         .select('id')
         .single();
-      if (imageError || !imageRow) continue;
-      importedImages += 1;
+      if (imageError || !imageRow) return null;
       if (image.id === work.cover_image_id) newCoverImageId = imageRow.id;
-    }
+      return imageRow.id;
+    });
+    const importedImageCount = imageResults.filter((id): id is string => id !== null).length;
 
     if (newCoverImageId) {
       await supabase.from('works').update({ cover_image_id: newCoverImageId }).eq('id', workRow.id);
     }
-  }
+
+    return { imported: true, images: importedImageCount };
+  });
+
+  const importedWorks = workResults.filter((r) => r.imported).length;
+  const importedImages = workResults.reduce((sum, r) => sum + r.images, 0);
 
   return {
     mode: 'add',
@@ -178,7 +225,7 @@ async function importReplace(supabase: SupabaseClient<Database>, manifest: Backu
   if (oldSiteBucketPaths.length) await supabase.storage.from('site').remove(oldSiteBucketPaths);
 
   // 4. Восстанавливаем каталог из архива — с исходными id и путями файлов.
-  for (const category of manifest.categories) {
+  await mapWithConcurrency(manifest.categories, 5, async (category) => {
     if (category.image_path) {
       await uploadFromZip(supabase, zip, 'works', `images/works/${category.image_path}`, category.image_path, skipped);
     }
@@ -190,10 +237,9 @@ async function importReplace(supabase: SupabaseClient<Database>, manifest: Backu
       image_path: category.image_path,
     });
     if (error) throw new Error(`Не удалось восстановить категорию «${category.name}»: ${error.message}`);
-  }
+  });
 
-  let importedImages = 0;
-  for (const work of manifest.works) {
+  const workImageCounts = await mapWithConcurrency(manifest.works, 4, async (work) => {
     const { error: workError } = await supabase.from('works').insert({
       id: work.id,
       category_id: work.category_id,
@@ -205,11 +251,17 @@ async function importReplace(supabase: SupabaseClient<Database>, manifest: Backu
       is_featured: work.is_featured,
       sort_order: work.sort_order,
       status: work.status,
+      // group_id не указываем, если в архиве его нет (старый бэкап без цветовых
+      // вариантов) — сработает трigger works_set_group_id и подставит group_id = id.
+      group_id: work.group_id,
+      color_name: work.color_name ?? null,
+      color_hex: work.color_hex ?? null,
+      is_primary: work.is_primary,
       cover_image_id: null, // фото ещё не вставлены — проставим ниже
     });
     if (workError) throw new Error(`Не удалось восстановить товар «${work.title}»: ${workError.message}`);
 
-    for (const image of work.images) {
+    const results = await mapWithConcurrency(work.images, 4, async (image): Promise<number> => {
       await uploadFromZip(supabase, zip, 'works', `images/works/${image.storage_path}`, image.storage_path, skipped);
       const { error: imageError } = await supabase.from('work_images').insert({
         id: image.id,
@@ -218,13 +270,16 @@ async function importReplace(supabase: SupabaseClient<Database>, manifest: Backu
         alt_text: image.alt_text,
         sort_order: image.sort_order,
       });
-      if (!imageError) importedImages += 1;
-    }
+      return imageError ? 0 : 1;
+    });
 
     if (work.cover_image_id) {
       await supabase.from('works').update({ cover_image_id: work.cover_image_id }).eq('id', work.id);
     }
-  }
+
+    return results.reduce((sum, n) => sum + n, 0);
+  });
+  const importedImages = workImageCounts.reduce((sum, n) => sum + n, 0);
 
   // 5. Настройки/меню/связи — обновляем на месте (site_settings и home_sections — по фиксированным
   //    id/key, их не удаляем), контакты и меню — заменяем целиком, это уже не singleton-строки.

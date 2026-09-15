@@ -34,6 +34,16 @@ const workBackupSchema = z.object({
   is_featured: z.boolean(),
   sort_order: z.number(),
   status: z.enum(['draft', 'published']),
+  // Цветовые варианты (миграция 0006_work_color_variants.sql): все товары с
+  // одинаковым group_id — один товар в разных цветах, is_primary отмечает,
+  // какой вариант показывается по умолчанию в каталоге. Опциональны для
+  // обратной совместимости со старыми бэкапами (версия 1 до этого коммита),
+  // где этих полей не было — при отсутствии group_id восстановленный товар
+  // просто станет отдельной группой сам по себе (см. import.ts).
+  group_id: z.string().optional(),
+  color_name: z.string().nullable().optional(),
+  color_hex: z.string().nullable().optional(),
+  is_primary: z.boolean().optional(),
   images: z.array(workImageBackupSchema),
 });
 
