@@ -28,7 +28,7 @@ export default async function WorksPage({ searchParams }: { searchParams: { cate
 
   return (
     <div className="pt-[82px]">
-      <section className="container-studio border-b border-ink/10 py-20 lg:py-28">
+      <section className="container-studio border-b border-ink/10 pt-20 lg:pt-28 pb-10 lg:pb-12">
         <div className="flex items-end justify-between gap-8">
           <div>
             <p className="eyebrow flex items-center gap-4"><span className="h-px w-10 bg-ink/25" /> проекты</p>
@@ -41,10 +41,13 @@ export default async function WorksPage({ searchParams }: { searchParams: { cate
             <span>{String((page - 1) * 8 + 1).padStart(2, '0')}</span><span className="h-px w-12 bg-ink/20" /><span>{String(total).padStart(2, '0')}</span>
           </div>
         </div>
-        <div className="mt-10"><CategoryFilter categories={categories} activeSlug={categorySlug} /></div>
-        <div className="mt-5 border-t border-ink/10 pt-5"><ColorFilter colors={colors} activeHex={colorHex} categorySlug={categorySlug} /></div>
+        <div className="mt-10 flex flex-wrap items-center gap-3">
+          <CategoryFilter categories={categories} activeSlug={categorySlug} />
+          {colors.length > 1 && <span className="hidden h-8 w-px shrink-0 bg-ink/10 sm:block" aria-hidden="true" />}
+          <ColorFilter colors={colors} activeHex={colorHex} categorySlug={categorySlug} />
+        </div>
       </section>
-      <section className="container-studio py-12 lg:py-16">
+      <section className="container-studio pt-6 pb-12 lg:pt-8 lg:pb-16">
         <WorksGrid works={works} nextHref={nextHref} />
       </section>
     </div>
