@@ -3,6 +3,12 @@
 import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
 import type { WorkImageWithUrl } from '@/types/domain';
+import { LoadingCatScene } from '@/components/loading/LoadingCatScene';
+
+// Сколько ждать после открытия/переключения фото в полноэкранном режиме,
+// прежде чем показать индикатор загрузки — быстрые загрузки не должны
+// мелькать котом на один кадр.
+const LIGHTBOX_LOADER_DELAY_MS = 500;
 
 export function WorkGallery({ images, title }: { images: WorkImageWithUrl[]; title: string }) {
   const [activeIndex, setActiveIndex] = useState(0);
@@ -10,6 +16,8 @@ export function WorkGallery({ images, title }: { images: WorkImageWithUrl[]; tit
   const [transition, setTransition] = useState(true);
   const [lightbox, setLightbox] = useState(false);
   const [lightboxImageReady, setLightboxImageReady] = useState(false);
+  const [showLightboxLoader, setShowLightboxLoader] = useState(false);
+  const lightboxLoaderTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [scale, setScale] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const drag = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null);
@@ -50,6 +58,33 @@ export function WorkGallery({ images, title }: { images: WorkImageWithUrl[]; tit
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = previous; };
   }, [lightbox]);
+
+  useEffect(() => {
+    // Переключение на следующее/предыдущее фото внутри лайтбокса тоже
+    // может тормозить на медленной сети — сбрасываем готовность, чтобы
+    // сработал и fade-in, и (при задержке) индикатор загрузки ниже.
+    if (lightbox) setLightboxImageReady(false);
+  }, [lightbox, activeIndex]);
+
+  useEffect(() => {
+    if (lightboxLoaderTimer.current) {
+      clearTimeout(lightboxLoaderTimer.current);
+      lightboxLoaderTimer.current = null;
+    }
+
+    if (!lightbox || lightboxImageReady) {
+      setShowLightboxLoader(false);
+      return;
+    }
+
+    lightboxLoaderTimer.current = setTimeout(() => {
+      setShowLightboxLoader(true);
+    }, LIGHTBOX_LOADER_DELAY_MS);
+
+    return () => {
+      if (lightboxLoaderTimer.current) clearTimeout(lightboxLoaderTimer.current);
+    };
+  }, [lightbox, lightboxImageReady, activeIndex]);
 
   function next() {
     if (images.length < 2) return;
@@ -204,6 +239,11 @@ export function WorkGallery({ images, title }: { images: WorkImageWithUrl[]; tit
           </button>
         )}
         <div className="fixed inset-0 flex h-full w-full touch-none items-center justify-center overflow-hidden px-4 py-16 sm:px-8 sm:py-14" onDoubleClick={() => zoomTo(scale > 1 ? 1 : 2)} onWheel={onWheel} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp}>
+          {showLightboxLoader && (
+            <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+              <LoadingCatScene />
+            </div>
+          )}
           {/*
             Раньше здесь был голый <img> с прямой ссылкой на файл в Supabase
             Storage — в обход next/image, а значит без переформатирования под
