@@ -17,7 +17,7 @@ export function WorksGrid({
 
   return (
     <>
-      <div className="grid gap-5 sm:gap-6 lg:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-5 sm:gap-6 lg:grid-cols-2">
         {works.map((work, i) => (
           <WorkCard key={work.id} work={work} priority={i < 4} variant="journal" />
         ))}
