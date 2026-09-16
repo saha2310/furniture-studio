@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useFormState, useFormStatus } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/Input';
@@ -11,7 +11,7 @@ import { Select } from '@/components/ui/Select';
 import { FormStatus } from '@/components/ui/FormStatus';
 import { ConfirmDialog } from '@/components/admin/shared/ConfirmDialog';
 import { slugify } from '@/lib/utils/slug';
-import { deleteWork, detachWorkFromGroup, attachWorkToGroup, type ActionResult } from '@/lib/actions/works';
+import { deleteWork, detachWorkFromGroup, attachWorkToGroup, moveWorkToGroup, type ActionResult } from '@/lib/actions/works';
 import type { Category, WorkWithUrls } from '@/types/domain';
 import { WorkImageEditor } from './WorkImageEditor';
 
@@ -125,14 +125,20 @@ function AttachExistingModal({ groupId, candidates, categories, currentCategoryI
   const [colorFilter, setColorFilter] = useState('');
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [colorOpen, setColorOpen] = useState(false);
+  const colorFilterRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
 
   useEffect(() => {
+    const onPointerDown = (event: PointerEvent) => {
+      if (colorFilterRef.current && !colorFilterRef.current.contains(event.target as Node)) setColorOpen(false);
+    };
+    document.addEventListener('pointerdown', onPointerDown);
     const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape' && !pendingId) onClose(); };
     const previous = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     document.addEventListener('keydown', onKeyDown);
-    return () => { document.body.style.overflow = previous; document.removeEventListener('keydown', onKeyDown); };
+    return () => { document.body.style.overflow = previous; document.removeEventListener('keydown', onKeyDown); document.removeEventListener('pointerdown', onPointerDown); };
   }, [onClose, pendingId]);
 
   const availableCategories = categories;
@@ -151,10 +157,10 @@ function AttachExistingModal({ groupId, candidates, categories, currentCategoryI
     return c.title.toLowerCase().includes(normalizedQuery) || (c.color_name ?? '').toLowerCase().includes(normalizedQuery);
   });
 
-  async function handleAttach(id: string) {
+  async function handleAttach(id: string, moveExisting = false) {
     setPendingId(id);
     setError(null);
-    const result = await attachWorkToGroup(id, groupId);
+    const result = moveExisting ? await moveWorkToGroup(id, groupId) : await attachWorkToGroup(id, groupId);
     setPendingId(null);
     if (result.success) {
       router.refresh();
@@ -181,10 +187,42 @@ function AttachExistingModal({ groupId, candidates, categories, currentCategoryI
             <option value="">Все категории</option>
             {availableCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
           </select>
-          <select value={colorFilter} onChange={(e) => setColorFilter(e.target.value)} className="h-11 min-w-0 border border-ink/15 bg-transparent px-3 text-sm text-ink focus:border-ink/40">
-            <option value="">Все цвета</option>
-            {availableColors.map((color) => { const value = `${color.name === 'Без названия' ? '' : color.name}|${color.hex}`; return <option key={value} value={value}>{color.name}{color.hex ? ` · ${color.hex}` : ''}</option>; })}
-          </select>
+          <div ref={colorFilterRef} className="relative min-w-0">
+            <button
+              type="button"
+              onClick={() => setColorOpen((value) => !value)}
+              className="flex h-11 w-full items-center gap-2 border border-ink/15 bg-transparent px-3 text-left text-sm text-ink hover:border-ink/30 focus:border-ink/40"
+              aria-expanded={colorOpen}
+              aria-haspopup="listbox"
+            >
+              <span
+                className="h-4 w-4 shrink-0 border border-ink/20"
+                style={{ backgroundColor: colorFilter ? (availableColors.find((color) => `${color.name === 'Без названия' ? '' : color.name}|${color.hex}` === colorFilter)?.hex ?? DEFAULT_SWATCH_HEX) : 'transparent' }}
+              />
+              <span className="min-w-0 flex-1 truncate">
+                {colorFilter ? (availableColors.find((color) => `${color.name === 'Без названия' ? '' : color.name}|${color.hex}` === colorFilter)?.name ?? 'Цвет') : 'Все цвета'}
+              </span>
+              <span className="text-[10px] text-ink/35">⌄</span>
+            </button>
+            {colorOpen && (
+              <div role="listbox" className="absolute inset-x-0 top-full z-20 mt-1 max-h-64 overflow-y-auto border border-ink/10 bg-surface p-1 shadow-xl">
+                <button type="button" role="option" aria-selected={!colorFilter} onClick={() => { setColorFilter(''); setColorOpen(false); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs hover:bg-ink/5">
+                  <span className="h-4 w-4 shrink-0 border border-dashed border-ink/25" />
+                  <span>Все цвета</span>
+                </button>
+                {availableColors.map((color) => {
+                  const value = `${color.name === 'Без названия' ? '' : color.name}|${color.hex}`;
+                  return (
+                    <button key={value} type="button" role="option" aria-selected={colorFilter === value} onClick={() => { setColorFilter(value); setColorOpen(false); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs hover:bg-ink/5">
+                      <span className="h-5 w-5 shrink-0 border border-ink/20" style={{ backgroundColor: color.hex || DEFAULT_SWATCH_HEX }} />
+                      <span className="min-w-0 flex-1 truncate">{color.name}</span>
+                      {color.hex && <span className="shrink-0 text-[9px] uppercase tracking-[0.08em] text-ink/30">{color.hex}</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-2">
@@ -205,12 +243,7 @@ function AttachExistingModal({ groupId, candidates, categories, currentCategoryI
                 const status = isCurrentGroup ? 'Уже в этой группе' : isOtherGroup ? 'Уже в другой группе цветов' : noCommonCategory ? 'Нет общей категории' : null;
                 return (
                   <li key={c.id}>
-                    <button
-                      type="button"
-                      disabled={!!pendingId || unavailable}
-                      onClick={() => handleAttach(c.id)}
-                      className="flex w-full items-center gap-3 px-3 py-2 text-left transition hover:bg-ink/5 disabled:opacity-60 disabled:hover:bg-transparent"
-                    >
+                    <div className="flex w-full items-center gap-3 px-3 py-2 transition hover:bg-ink/5">
                       <span className="relative h-11 w-11 shrink-0 overflow-hidden border border-ink/10 bg-canvas">
                         {cover ? (
                           <img src={cover} alt="" className="h-full w-full object-cover" loading="lazy" />
@@ -225,9 +258,18 @@ function AttachExistingModal({ groupId, candidates, categories, currentCategoryI
                           {c.color_name || 'Без названия цвета'} · {c.category?.name ?? 'Без категории'}{c.status === 'draft' ? ' · Черновик' : ''}
                         </span>
                       </span>
-                      {isPending && <span className="shrink-0 text-[10px] text-ink/40">Привязываем…</span>}
-                      {!isPending && status && <span className="max-w-[150px] shrink-0 text-right text-[9px] uppercase tracking-[0.08em] text-ink/35">{status}</span>}
-                    </button>
+                      <span className="shrink-0">
+                        {isPending ? (
+                          <span className="text-[10px] text-ink/40">Сохраняем…</span>
+                        ) : isOtherGroup ? (
+                          <button type="button" disabled={!!pendingId || noCommonCategory} onClick={() => handleAttach(c.id, true)} className="border border-ink/15 px-2.5 py-1.5 text-[9px] uppercase tracking-[0.08em] text-ink/65 hover:border-ink/40 hover:text-ink disabled:opacity-40">Открепить и привязать</button>
+                        ) : unavailable ? (
+                          <span className="max-w-[150px] text-right text-[9px] uppercase tracking-[0.08em] text-ink/35">{status}</span>
+                        ) : (
+                          <button type="button" disabled={!!pendingId} onClick={() => handleAttach(c.id)} className="border border-ink/15 px-2.5 py-1.5 text-[9px] uppercase tracking-[0.08em] text-ink/65 hover:border-ink/40 hover:text-ink disabled:opacity-40">Привязать</button>
+                        )}
+                      </span>
+                    </div>
                   </li>
                 );
               })}

@@ -337,12 +337,27 @@ export async function updateWorkImageCatalogSettings(
     catalog_zoom: Math.max(1, Math.min(4, zoom)),
     catalog_flip_horizontal: Boolean(settings.catalog_flip_horizontal),
   };
-  const { data, error } = await supabase.from('work_images').update(values).eq('id', imageId).select('work_id').maybeSingle();
-  if (error || !data) return { success: false, message: 'Не удалось сохранить настройки изображения карточки.' };
+  const { data: image, error: imageError } = await supabase
+    .from('work_images')
+    .select('work_id')
+    .eq('id', imageId)
+    .maybeSingle();
+  if (imageError || !image) {
+    return { success: false, message: imageError ? actionError('Не удалось найти изображение карточки.', imageError) : 'Изображение карточки не найдено.' };
+  }
+
+  const { error } = await supabase.from('work_images').update(values).eq('id', imageId);
+  if (error) {
+    const code = typeof error === 'object' && error && 'code' in error ? String((error as { code?: unknown }).code ?? '') : '';
+    if (code === 'PGRST204' || /catalog_(position_x|position_y|zoom|flip_horizontal)/i.test(error.message ?? '')) {
+      return { success: false, message: 'В базе ещё нет настроек изображения карточки. Примените миграцию supabase/migrations/0009_work_image_catalog_settings.sql в Supabase SQL Editor, затем обновите страницу.' };
+    }
+    return { success: false, message: actionError('Не удалось сохранить настройки изображения карточки.', error) };
+  }
 
   revalidatePath('/works');
   revalidatePath('/admin/works');
-  revalidatePath(`/admin/works/${data.work_id}`);
+  revalidatePath(`/admin/works/${image.work_id}`);
   return { success: true, message: 'Настройки изображения карточки сохранены.' };
 }
 
@@ -657,6 +672,62 @@ export async function attachWorkToGroup(workId: string, targetGroupId: string): 
   revalidatePath(`/admin/works/${targetGroupId}`);
   revalidatePath(`/admin/works/${workId}`);
   return { success: true, message: 'Товар добавлен как цветовой вариант' };
+}
+
+// Переназначить существующий цветовой вариант из одной группы в другую.
+// Используется из пикера, когда админ понял, что ранее прикрепил товар не к той
+// группе: товар не удаляется и его фотографии не затрагиваются. Сервер повторно
+// проверяет категории и сам выбирает нового primary в старой группе при необходимости.
+export async function moveWorkToGroup(workId: string, targetGroupId: string): Promise<ActionResult> {
+  try {
+    await requireUser();
+  } catch (e) {
+    if (isUnauthorizedError(e)) return { success: false, message: 'Требуется авторизация.' };
+    throw e;
+  }
+
+  if (workId === targetGroupId) return { success: false, message: 'Товар уже является основной работой этой группы.' };
+
+  const supabase = await createClient();
+  const { data: current, error: currentError } = await supabase
+    .from('works')
+    .select('id, group_id, category_id, is_primary')
+    .eq('id', workId)
+    .maybeSingle();
+  if (currentError || !current) return { success: false, message: 'Работа не найдена.' };
+
+  const { data: target, error: targetError } = await supabase
+    .from('works')
+    .select('id, category_id')
+    .eq('id', targetGroupId)
+    .maybeSingle();
+  if (targetError || !target) return { success: false, message: 'Целевая группа не найдена.' };
+
+  const [currentCategories, targetCategories] = await Promise.all([
+    getWorkCategorySet(supabase, current.id, current.category_id),
+    getWorkCategorySet(supabase, target.id, target.category_id),
+  ]);
+  if (!hasOverlap(currentCategories, targetCategories)) {
+    return { success: false, message: 'У товаров нет общей категории — варианты одного товара должны иметь хотя бы одну общую категорию.' };
+  }
+
+  const oldGroupId = current.group_id;
+  const { error: updateError } = await supabase
+    .from('works')
+    .update({ group_id: targetGroupId, is_primary: false })
+    .eq('id', workId);
+  if (updateError) return { success: false, message: actionError('Не удалось перепривязать товар к новой группе.', updateError) };
+
+  if (oldGroupId && oldGroupId !== workId && current.is_primary) {
+    await ensureGroupHasPrimary(supabase, oldGroupId);
+  }
+
+  revalidatePath('/works');
+  revalidatePath('/admin/works');
+  revalidatePath(`/admin/works/${oldGroupId}`);
+  revalidatePath(`/admin/works/${targetGroupId}`);
+  revalidatePath(`/admin/works/${workId}`);
+  return { success: true, message: 'Товар откреплён от старой группы и привязан к новой.' };
 }
 
 // Быстрое переключение статуса из карточки в списке (без открытия полной
