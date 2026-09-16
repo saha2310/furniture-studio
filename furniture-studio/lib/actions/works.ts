@@ -184,13 +184,15 @@ async function syncWorkImages(
   const newIds = formData.getAll('new_image_ids').map(String).filter(Boolean);
   const replacementPaths = formData.getAll('replace_image_paths').map(String).filter(Boolean);
   const replacementIds = formData.getAll('replace_image_ids').map(String).filter(Boolean);
+  const replacementOriginalPaths = formData.getAll('replace_image_original_paths').map(String);
+  const newOriginalPaths = formData.getAll('new_image_original_paths').map(String);
   const deleteIds = formData.getAll('delete_image_ids').map(String).filter(Boolean);
   const selectedCover = String(formData.get('cover_image_id') || '');
 
-  if (replacementPaths.length !== replacementIds.length) {
+  if (replacementPaths.length !== replacementIds.length || replacementOriginalPaths.length !== replacementIds.length) {
     return { success: false, message: 'Не удалось сопоставить изменённые фотографии. Обновите страницу и попробуйте снова.' };
   }
-  if (newPaths.length !== newIds.length) {
+  if (newPaths.length !== newIds.length || newOriginalPaths.length !== newIds.length) {
     return { success: false, message: 'Не удалось сопоставить новые фотографии. Обновите страницу и попробуйте снова.' };
   }
   // Лёгкая проверка на всякий случай — реальная валидация типа/размера уже
@@ -207,7 +209,7 @@ async function syncWorkImages(
     if (!deleteIds.length) return { success: true };
     const { data: doomed, error } = await supabase
       .from('work_images')
-      .select('id, storage_path')
+      .select('id, storage_path, original_path')
       .in('id', deleteIds)
       .eq('work_id', workId);
     if (error) return { success: false, message: actionError('Не удалось подготовить удаление фотографий.', error) };
@@ -219,7 +221,7 @@ async function syncWorkImages(
     // останется "осиротевший" файл, не повреждённые данные).
     const { error: deleteError } = await supabase.from('work_images').delete().in('id', doomedIds);
     if (deleteError) return { success: false, message: actionError('Не удалось удалить выбранные фотографии.', deleteError) };
-    const { error: storageError } = await supabase.storage.from('works').remove(doomed.map((item) => item.storage_path));
+    const { error: storageError } = await supabase.storage.from('works').remove(doomed.flatMap((item) => [item.storage_path, (item as { original_path?: string | null }).original_path].filter(Boolean) as string[]));
     if (storageError) console.error('syncWorkImages: storage remove failed', storageError.message);
     return { success: true };
   }
@@ -231,7 +233,7 @@ async function syncWorkImages(
         const imageId = replacementIds[i];
         const { data: old, error: oldError } = await supabase
           .from('work_images')
-          .select('storage_path')
+          .select('storage_path, original_path')
           .eq('id', imageId)
           .eq('work_id', workId)
           .maybeSingle();
@@ -239,12 +241,14 @@ async function syncWorkImages(
           await supabase.storage.from('works').remove([path]);
           return { success: false as const, message: 'Одно из изменяемых изображений больше не существует.' };
         }
-        const { error: updateError } = await supabase.from('work_images').update({ storage_path: path }).eq('id', imageId).eq('work_id', workId);
+        const originalPath = replacementOriginalPaths[i] || old.original_path || null;
+        const { error: updateError } = await supabase.from('work_images').update({ storage_path: path, original_path: originalPath }).eq('id', imageId).eq('work_id', workId);
         if (updateError) {
           await supabase.storage.from('works').remove([path]);
           return { success: false as const, message: actionError('Не удалось сохранить изменённую фотографию.', updateError) };
         }
         if (old.storage_path && old.storage_path !== path) await supabase.storage.from('works').remove([old.storage_path]);
+        if (old.original_path && old.original_path !== originalPath && old.original_path !== old.storage_path) await supabase.storage.from('works').remove([old.original_path]);
         return { success: true as const };
       })
     );
@@ -271,7 +275,7 @@ async function syncWorkImages(
     // проставленных при загрузке на клиенте), а не по порядку в ответе.
     const { data: rows, error: insertError } = await supabase
       .from('work_images')
-      .insert(newPaths.map((path, i) => ({ work_id: workId, storage_path: path, sort_order: startOrder + i })))
+      .insert(newPaths.map((path, i) => ({ work_id: workId, storage_path: path, original_path: newOriginalPaths[i] || null, sort_order: startOrder + i })))
       .select('id, storage_path');
     if (insertError || !rows) {
       await supabase.storage.from('works').remove(newPaths);

@@ -29,6 +29,7 @@ export function ImageCropDialog({ sourceUrl, title = 'Редактор изоб�
   const [ratio, setRatio] = useState<number | null>(initialRatio);
   const [zoom, setZoom] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [flipped, setFlipped] = useState(false);
   const [frame, setFrame] = useState({ width: 680, height: 520 });
   const [error, setError] = useState<string | null>(null);
   const [applying, setApplying] = useState(false);
@@ -55,6 +56,7 @@ export function ImageCropDialog({ sourceUrl, title = 'Редактор изоб�
           setRatio((current) => current === null ? null : current);
           setOffset({ x: 0, y: 0 });
           setZoom(1);
+          setFlipped(false);
         };
         img.onerror = () => setError('Не удалось открыть изображение для редактирования.');
         img.src = url;
@@ -197,7 +199,13 @@ export function ImageCropDialog({ sourceUrl, title = 'Редактор изоб�
         img.onload = () => resolve();
         img.onerror = () => reject(new Error('Не удалось подготовить изображение'));
       });
+      if (flipped) {
+        ctx.save();
+        ctx.translate(outWidth, 0);
+        ctx.scale(-1, 1);
+      }
       ctx.drawImage(img, x, y, exportWidth, exportHeight);
+      if (flipped) ctx.restore();
 
       const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/webp', WEBP_QUALITY));
       if (!blob) throw new Error('Не удалось создать новый файл');
@@ -242,7 +250,7 @@ export function ImageCropDialog({ sourceUrl, title = 'Редактор изоб�
                   style={{
                     width: rendered.width,
                     height: rendered.height,
-                    transform: `translate(-50%, -50%) translate(${offset.x}px, ${offset.y}px)`,
+                    transform: `translate(-50%, -50%) translate(${offset.x}px, ${offset.y}px) scaleX(${flipped ? -1 : 1})`,
                   }}
                 />
                 <div className="pointer-events-none absolute inset-0 bg-black/55" />
@@ -270,6 +278,10 @@ export function ImageCropDialog({ sourceUrl, title = 'Редактор изоб�
                 ))}
               </div>
             </div>
+
+            <button type="button" onClick={() => setFlipped((value) => !value)} className={`flex h-10 items-center justify-center gap-2 border px-3 text-[10px] uppercase tracking-[0.12em] transition-colors ${flipped ? 'border-ink bg-ink text-canvas' : 'border-ink/15 text-ink/70 hover:border-ink/40 hover:text-ink'}`}>
+              <span aria-hidden="true">↔</span> Зеркалить по горизонтали
+            </button>
 
             <div>
               <div className="flex items-center justify-between"><p className="eyebrow">масштаб</p><span className="text-xs text-ink/65">{Math.round(zoom * 100)}%</span></div>

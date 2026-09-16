@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { Fragment, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import type { WorkImageWithUrl } from '@/types/domain';
-import { ACCEPTED_IMAGE_TYPES, MAX_IMAGE_SIZE_BYTES } from '@/lib/utils/image';
+import { ACCEPTED_IMAGE_TYPES, MAX_IMAGE_SIZE_BYTES, workImageUrl } from '@/lib/utils/image';
 import { convertToWebp } from '@/lib/utils/image-client';
 import { createBrowserSupabaseClient } from '@/lib/supabase/browser';
 import { ImageCropDialog } from '@/components/admin/shared/ImageCropDialog';
@@ -12,8 +12,8 @@ import { MediaLibraryPicker } from '@/components/admin/shared/MediaLibraryPicker
 import { copyMediaAssetToWork } from '@/lib/actions/media';
 
 type UploadStatus = 'uploading' | 'done' | 'error';
-interface PendingNewImage { id: string; file: File; url: string; status: UploadStatus; path?: string; errorMessage?: string }
-interface PendingReplacement { id: string; file: File; url: string; status: UploadStatus; path?: string; errorMessage?: string }
+interface PendingNewImage { id: string; file: File; url: string; status: UploadStatus; path?: string; originalPath?: string; errorMessage?: string }
+interface PendingReplacement { id: string; file: File; url: string; status: UploadStatus; path?: string; originalPath?: string; errorMessage?: string }
 
 const MAX_MB = Math.round(MAX_IMAGE_SIZE_BYTES / (1024 * 1024));
 
@@ -100,6 +100,25 @@ export function WorkImageEditor({
     return path;
   }
 
+  async function uploadOriginal(file: File, suffix = 'original') {
+    const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+    const path = `${folderIdRef.current}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${suffix}.${ext}`;
+    const { error: uploadError } = await supabaseBrowser.storage.from('works').upload(path, file, {
+      contentType: file.type,
+      cacheControl: '31536000',
+    });
+    if (uploadError) throw new Error(uploadError.message);
+    return path;
+  }
+
+  async function uploadOriginalFromUrl(sourceUrl: string) {
+    const response = await fetch(sourceUrl, { cache: 'no-store' });
+    if (!response.ok) throw new Error('Не удалось подготовить оригинал');
+    const blob = await response.blob();
+    const file = new File([blob], `original-${Date.now()}.${blob.type.split('/')[1] || 'jpg'}`, { type: blob.type });
+    return uploadOriginal(file);
+  }
+
   function addFiles(list: FileList | null) {
     if (!list) return;
     const incoming = Array.from(list);
@@ -111,8 +130,8 @@ export function WorkImageEditor({
     if (!selectedCover && added[0]) setSelectedCover(added[0].id);
 
     added.forEach((item) => {
-      uploadToStorage(item.file)
-        .then((path) => setNewImages((items) => items.map((i) => (i.id === item.id ? { ...i, status: 'done', path } : i))))
+      Promise.all([uploadToStorage(item.file), uploadOriginal(item.file)])
+        .then(([path, originalPath]) => setNewImages((items) => items.map((i) => (i.id === item.id ? { ...i, status: 'done', path, originalPath } : i))))
         .catch(() => setNewImages((items) => items.map((i) => (i.id === item.id ? { ...i, status: 'error', errorMessage: 'Не удалось загрузить файл.' } : i))));
     });
   }
@@ -121,8 +140,8 @@ export function WorkImageEditor({
     const item = newImages.find((i) => i.id === id);
     if (!item) return;
     setNewImages((items) => items.map((i) => (i.id === id ? { ...i, status: 'uploading', errorMessage: undefined } : i)));
-    uploadToStorage(item.file)
-      .then((path) => setNewImages((items) => items.map((i) => (i.id === id ? { ...i, status: 'done', path } : i))))
+    Promise.all([uploadToStorage(item.file), uploadOriginal(item.file)])
+      .then(([path, originalPath]) => setNewImages((items) => items.map((i) => (i.id === id ? { ...i, status: 'done', path, originalPath } : i))))
       .catch(() => setNewImages((items) => items.map((i) => (i.id === id ? { ...i, status: 'error', errorMessage: 'Не удалось загрузить файл.' } : i))));
   }
 
@@ -160,7 +179,9 @@ export function WorkImageEditor({
   }
 
   function startExistingEdit(image: WorkImageWithUrl) {
-    setEditor({ kind: 'existing', id: image.id, sourceUrl: replacements.find((item) => item.id === image.id)?.url ?? image.url });
+    const replacement = replacements.find((item) => item.id === image.id);
+    const sourceUrl = replacement?.url ?? (image.original_path ? workImageUrl(image.original_path) : image.url);
+    setEditor({ kind: 'existing', id: image.id, sourceUrl });
   }
 
   function startNewEdit(image: PendingNewImage) {
@@ -173,17 +194,19 @@ export function WorkImageEditor({
       const previous = replacements.find((item) => item.id === editor.id);
       if (previous?.url) URL.revokeObjectURL(previous.url);
       if (previous?.path) supabaseBrowser.storage.from('works').remove([previous.path]).catch(() => {});
+      const sourceImage = images.find((item) => item.id === editor.id);
       setReplacements((items) => [...items.filter((item) => item.id !== editor.id), { id: editor.id, file, url, status: 'uploading' }]);
-      uploadToStorage(file)
-        .then((path) => setReplacements((items) => items.map((i) => (i.id === editor.id ? { ...i, status: 'done', path } : i))))
+      const originalPromise = sourceImage?.original_path ? Promise.resolve(sourceImage.original_path) : uploadOriginalFromUrl(editor.sourceUrl);
+      Promise.all([uploadToStorage(file), originalPromise])
+        .then(([path, originalPath]) => setReplacements((items) => items.map((i) => (i.id === editor.id ? { ...i, status: 'done', path, originalPath } : i))))
         .catch(() => setReplacements((items) => items.map((i) => (i.id === editor.id ? { ...i, status: 'error', errorMessage: 'Не удалось загрузить файл.' } : i))));
     } else {
       const previous = newImages.find((item) => item.id === editor.id);
       if (previous?.url) URL.revokeObjectURL(previous.url);
       if (previous?.path) supabaseBrowser.storage.from('works').remove([previous.path]).catch(() => {});
       setNewImages((items) => items.map((item) => (item.id === editor.id ? { ...item, file, url, status: 'uploading', path: undefined } : item)));
-      uploadToStorage(file)
-        .then((path) => setNewImages((items) => items.map((i) => (i.id === editor.id ? { ...i, status: 'done', path } : i))))
+      Promise.all([uploadToStorage(file), newImages.find((item) => item.id === editor.id)?.originalPath ? Promise.resolve(newImages.find((item) => item.id === editor.id)?.originalPath as string) : uploadOriginal(file)])
+        .then(([path, originalPath]) => setNewImages((items) => items.map((i) => (i.id === editor.id ? { ...i, status: 'done', path, originalPath } : i))))
         .catch(() => setNewImages((items) => items.map((i) => (i.id === editor.id ? { ...i, status: 'error', errorMessage: 'Не удалось загрузить файл.' } : i))));
     }
     setEditor(null);
@@ -291,6 +314,7 @@ export function WorkImageEditor({
         <Fragment key={item.id}>
           <input type="hidden" name="replace_image_ids" value={item.id} />
           <input type="hidden" name="replace_image_paths" value={item.path} />
+          <input type="hidden" name="replace_image_original_paths" value={item.originalPath ?? ""} />
         </Fragment>
       ))}
       {deleted.map((id) => <input key={id} type="hidden" name="delete_image_ids" value={id} />)}
@@ -298,6 +322,7 @@ export function WorkImageEditor({
         <Fragment key={item.id}>
           <input type="hidden" name="new_image_ids" value={item.id} />
           <input type="hidden" name="new_image_paths" value={item.path} />
+          <input type="hidden" name="new_image_original_paths" value={item.originalPath ?? ""} />
         </Fragment>
       ))}
       <input type="hidden" name="cover_image_id" value={selectedCover ?? ''} />

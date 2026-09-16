@@ -113,12 +113,11 @@ function StatusPill({ published }: { published: boolean }) {
 // VariantBar, как было со старым absolute-дропдауном. Паттерн модалки —
 // как в MediaLibraryPicker (Escape/клик по фону закрывает, блокировка
 // прокрутки body), для визуальной и поведенческой консистентности админки.
-function AttachExistingModal({ groupId, candidates, onClose }: { groupId: string; candidates: WorkWithUrls[]; onClose: () => void }) {
+function AttachExistingModal({ groupId, candidates, categories, onClose }: { groupId: string; candidates: WorkWithUrls[]; categories: Category[]; onClose: () => void }) {
   const router = useRouter();
   const [query, setQuery] = useState('');
-  // '' = «Все категории». Полезен, только если среди кандидатов реально
-  // встречается больше одной категории — иначе просто не рендерится.
   const [categoryFilter, setCategoryFilter] = useState('');
+  const [colorFilter, setColorFilter] = useState('');
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const titleId = useId();
@@ -131,21 +130,20 @@ function AttachExistingModal({ groupId, candidates, onClose }: { groupId: string
     return () => { document.body.style.overflow = previous; document.removeEventListener('keydown', onKeyDown); };
   }, [onClose, pendingId]);
 
-  // Категории, реально встречающиеся среди кандидатов (с появлением доп.
-  // категорий кандидаты уже не обязаны быть из одной категории — см.
-  // getStandaloneWorksAdmin), чтобы можно было сузить длинный список.
-  const availableCategories = Array.from(
-    new Map(candidates.map((c) => [c.category_id, c.category?.name ?? 'Без категории'])).entries()
-  );
+  const availableCategories = categories;
+  const availableColors = Array.from(new Map(
+    candidates
+      .filter((c) => c.color_name || c.color_hex)
+      .map((c) => [`${c.color_name ?? ''}|${c.color_hex ?? ''}`, { name: c.color_name || 'Без названия', hex: c.color_hex || DEFAULT_SWATCH_HEX }])
+  ).values());
 
   const normalizedQuery = query.trim().toLowerCase();
   const filtered = candidates.filter((c) => {
-    if (categoryFilter && c.category_id !== categoryFilter) return false;
+    const categoryIds = [c.category_id, ...(c.extraCategoryIds ?? [])];
+    if (categoryFilter && !categoryIds.includes(categoryFilter)) return false;
+    if (colorFilter && `${c.color_name ?? ''}|${c.color_hex ?? ''}` !== colorFilter) return false;
     if (!normalizedQuery) return true;
-    return (
-      c.title.toLowerCase().includes(normalizedQuery) ||
-      (c.color_name ?? '').toLowerCase().includes(normalizedQuery)
-    );
+    return c.title.toLowerCase().includes(normalizedQuery) || (c.color_name ?? '').toLowerCase().includes(normalizedQuery);
   });
 
   async function handleAttach(id: string) {
@@ -167,35 +165,27 @@ function AttachExistingModal({ groupId, candidates, onClose }: { groupId: string
         <div className="flex items-center justify-between gap-4 border-b border-ink/10 p-5">
           <div>
             <h2 id={titleId} className="text-lg text-ink">Привязать существующий товар</h2>
-            <p className="mt-1 text-xs leading-5 text-ink/40">Товар станет цветовым вариантом этой группы. Показаны товары, у которых есть хотя бы одна общая категория с текущим и которые ещё не привязаны к другой группе цветов.</p>
+            <p className="mt-1 text-xs leading-5 text-ink/40">Показаны все самостоятельные товары. Фильтры помогают быстро найти нужный, а при привязке сервер дополнительно проверит совместимость категорий.</p>
           </div>
           <button type="button" onClick={onClose} disabled={!!pendingId} className="shrink-0 text-2xl leading-none text-ink/50 hover:text-ink disabled:opacity-40" aria-label="Закрыть">×</button>
         </div>
 
-        <div className="flex flex-col gap-2 border-b border-ink/10 p-4 sm:flex-row">
-          <input
-            autoFocus
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Поиск по названию или цвету…"
-            className="h-11 min-w-0 flex-1 border border-ink/15 bg-transparent px-3 text-sm text-ink placeholder:text-ink/35 focus:border-ink/40"
-          />
-          {availableCategories.length > 1 && (
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="h-11 shrink-0 border border-ink/15 bg-transparent px-3 text-sm text-ink focus:border-ink/40 sm:w-52"
-            >
-              <option value="">Все категории</option>
-              {availableCategories.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
-            </select>
-          )}
+        <div className="grid gap-2 border-b border-ink/10 p-4 sm:grid-cols-[minmax(0,1fr),180px,180px]">
+          <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Название или название цвета…" className="h-11 min-w-0 border border-ink/15 bg-transparent px-3 text-sm text-ink placeholder:text-ink/35 focus:border-ink/40" />
+          <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="h-11 min-w-0 border border-ink/15 bg-transparent px-3 text-sm text-ink focus:border-ink/40">
+            <option value="">Все категории</option>
+            {availableCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+          </select>
+          <select value={colorFilter} onChange={(e) => setColorFilter(e.target.value)} className="h-11 min-w-0 border border-ink/15 bg-transparent px-3 text-sm text-ink focus:border-ink/40">
+            <option value="">Все цвета</option>
+            {availableColors.map((color) => { const value = `${color.name === 'Без названия' ? '' : color.name}|${color.hex}`; return <option key={value} value={value}>{color.name}{color.hex ? ` · ${color.hex}` : ''}</option>; })}
+          </select>
         </div>
 
         <div className="flex-1 overflow-y-auto p-2">
           {filtered.length === 0 ? (
             <p className="px-3 py-10 text-center text-sm text-ink/40">
-              {candidates.length === 0 ? 'Нет свободных товаров с общей категорией — все либо уже входят в группы цветов, либо ни с чем не пересекаются по категориям.' : 'Ничего не найдено. Попробуйте другой запрос или снимите фильтр категории.'}
+              {candidates.length === 0 ? 'Нет самостоятельных товаров для привязки.' : 'Ничего не найдено. Попробуйте другой запрос или снимите фильтр категории.'}
             </p>
           ) : (
             <ul>
@@ -245,7 +235,7 @@ function AttachExistingModal({ groupId, candidates, onClose }: { groupId: string
 // Список кандидатов открывается полноэкранной модалкой (AttachExistingModal)
 // поверх всей страницы, а не выпадашкой рядом с кнопкой — раньше дропдаун
 // был вложен в горизонтально скроллящийся VariantBar и обрезался им.
-function AttachExistingPicker({ groupId, candidates }: { groupId: string; candidates: WorkWithUrls[] }) {
+function AttachExistingPicker({ groupId, candidates, categories }: { groupId: string; candidates: WorkWithUrls[]; categories: Category[] }) {
   const [open, setOpen] = useState(false);
 
   if (candidates.length === 0) return null;
@@ -253,7 +243,7 @@ function AttachExistingPicker({ groupId, candidates }: { groupId: string; candid
   return (
     <>
       <AddSquareButton label="Товар" title="Привязать существующий товар как цвет" onClick={() => setOpen(true)} />
-      {open && <AttachExistingModal groupId={groupId} candidates={candidates} onClose={() => setOpen(false)} />}
+      {open && <AttachExistingModal groupId={groupId} candidates={candidates} categories={categories} onClose={() => setOpen(false)} />}
     </>
   );
 }
@@ -267,6 +257,7 @@ function VariantBar({
   groupId,
   categoryId,
   attachCandidates = [],
+  categories = [],
 }: {
   currentId?: string;
   currentTitle: string;
@@ -276,6 +267,7 @@ function VariantBar({
   groupId?: string;
   categoryId?: string;
   attachCandidates?: WorkWithUrls[];
+  categories?: Category[];
 }) {
   const router = useRouter();
   if (siblings.length === 0 && !groupId) return null;
@@ -370,7 +362,7 @@ function VariantBar({
       </div>
       <div className="flex shrink-0 items-center gap-2 border-l border-ink/10 pl-3">
         <AddSquareButton label="Цвет" title="Добавить новый цвет этого товара" href={addHref} />
-        {groupId && <AttachExistingPicker groupId={groupId} candidates={attachCandidates} />}
+        {groupId && <AttachExistingPicker groupId={groupId} candidates={attachCandidates} categories={categories} />}
       </div>
     </div>
   );
@@ -494,7 +486,7 @@ export function WorkForm({ categories, initialData, action, submitLabel, redirec
         </div>
       </div>
 
-      <VariantBar currentId={initialData?.id} currentTitle={title} currentColorName={colorName} currentColorHex={colorHex} siblings={colorVariants} groupId={effectiveGroupId} categoryId={categoryId} attachCandidates={attachCandidates} />
+      <VariantBar categories={categories} currentId={initialData?.id} currentTitle={title} currentColorName={colorName} currentColorHex={colorHex} siblings={colorVariants} groupId={effectiveGroupId} categoryId={categoryId} attachCandidates={attachCandidates} />
 
       <div className="mt-5 space-y-8">
         <section>
@@ -530,26 +522,30 @@ export function WorkForm({ categories, initialData, action, submitLabel, redirec
             </Select>
           </div>
           {categories.length > 1 && (
-            <div className="mt-5">
-              <p className="mb-2 text-[11px] uppercase tracking-[0.12em] text-espresso">Также показывать в категориях</p>
-              <div className="flex flex-wrap gap-x-5 gap-y-2">
-                {categories
-                  .filter((category) => category.id !== categoryId)
-                  .map((category) => (
-                    <label key={category.id} className="flex items-center gap-2 text-sm text-ink/75">
-                      <input
-                        type="checkbox"
-                        name="category_ids"
-                        value={category.id}
-                        checked={extraCategoryIds.includes(category.id)}
-                        onChange={() => toggleExtraCategory(category.id)}
-                        className="h-4 w-4 accent-[rgb(var(--color-ink))]"
-                      />
-                      {category.name}
-                    </label>
-                  ))}
+            <div className="relative mt-5" ref={(node) => { if (node) { /* anchor only */ } }}>
+              <div className="flex flex-wrap items-center gap-2">
+                <details className="group relative">
+                  <summary className="flex h-10 cursor-pointer list-none items-center gap-2 border border-ink/15 px-3 text-[10px] uppercase tracking-[0.12em] text-ink/65 hover:border-ink/35 hover:text-ink">
+                    Дополнительные категории
+                    {extraCategoryIds.length > 0 && <span className="text-ink">({extraCategoryIds.length})</span>}
+                    <span className="text-ink/35 transition group-open:rotate-180">⌄</span>
+                  </summary>
+                  <div className="absolute left-0 top-12 z-30 w-72 border border-ink/10 bg-surface p-2 shadow-xl">
+                    {categories.filter((category) => category.id !== categoryId).map((category) => (
+                      <label key={category.id} className="flex cursor-pointer items-center gap-3 px-3 py-2.5 text-sm text-ink/75 hover:bg-ink/5">
+                        <input type="checkbox" name="category_ids" value={category.id} checked={extraCategoryIds.includes(category.id)} onChange={() => toggleExtraCategory(category.id)} className="h-4 w-4 accent-[rgb(var(--color-ink))]" />
+                        {category.name}
+                      </label>
+                    ))}
+                  </div>
+                </details>
+                {extraCategoryIds.map((id) => {
+                  const category = categories.find((item) => item.id === id);
+                  if (!category) return null;
+                  return <span key={id} className="inline-flex h-8 items-center gap-1.5 border border-ink/10 bg-ink/[0.03] pl-2.5 pr-1 text-xs text-ink/65">{category.name}<button type="button" onClick={() => toggleExtraCategory(id)} className="flex h-5 w-5 items-center justify-center text-ink/40 hover:text-ink" aria-label={`Убрать категорию ${category.name}`}>×</button></span>;
+                })}
               </div>
-              <p className="mt-2 text-xs leading-5 text-ink/35">Работа останется в основной категории (выше) и дополнительно появится в отмеченных.</p>
+              <p className="mt-2 text-xs leading-5 text-ink/35">Основная категория остаётся выбранной выше. Дополнительные сохранятся после сохранения работы.</p>
             </div>
           )}
           <div className="mt-5"><Textarea name="description" label="Описание" rows={7} defaultValue={initialData?.description ?? ''} /></div>

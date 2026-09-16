@@ -263,10 +263,14 @@ async function importReplace(supabase: SupabaseClient<Database>, manifest: Backu
 
     const results = await mapWithConcurrency(work.images, 4, async (image): Promise<number> => {
       await uploadFromZip(supabase, zip, 'works', `images/works/${image.storage_path}`, image.storage_path, skipped);
+      if (image.original_path && image.original_path !== image.storage_path) {
+        await uploadFromZip(supabase, zip, 'works', `images/works/${image.original_path}`, image.original_path, skipped);
+      }
       const { error: imageError } = await supabase.from('work_images').insert({
         id: image.id,
         work_id: work.id,
         storage_path: image.storage_path,
+        original_path: image.original_path ?? null,
         alt_text: image.alt_text,
         sort_order: image.sort_order,
       });

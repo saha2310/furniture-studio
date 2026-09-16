@@ -348,54 +348,40 @@ export async function getWorkGroupVariantsAdmin(groupId: string, excludeId?: str
   return (data ?? []).map(attachUrls);
 }
 
-// Для «+ Существующий товар» в VariantBar: самостоятельные товары, ещё не
-// состоящие ни в чьей группе цветов (group_id === id — то же условие, что
-// использует detachWorkFromGroup/триггер по умолчанию), у которых есть хотя
-// бы одна общая категория с текущим товаром (основная ИЛИ дополнительная —
-// см. attachWorkToGroup, который проверяет то же самое пересечение на
-// сервере при сохранении). Раньше кандидатов искали строго по точному
-// совпадению одной category_id — из-за этого пикер показывал заметно
-// меньше товаров, чем реально можно было привязать, и было непонятно,
-// почему нужный товар не находится. С появлением доп. категорий условие
-// расширено, а не сужено, поэтому регрессии в старом (однокатегорийном)
-// случае нет: пересечение с самим собой по единственной категории — то же
-// самое точное совпадение, что было раньше.
+// Для «+ Существующий товар»: показываем все самостоятельные карточки.
+// Клиентский пикер фильтрует по названию, цвету и категориям, а финальная
+// проверка пересечения категорий остаётся в attachWorkToGroup.
 export async function getStandaloneWorksAdmin(workId: string): Promise<WorkWithUrls[]> {
   await requireUser();
   const supabase = await createClient();
 
-  const { data: current, error: currentError } = await supabase
-    .from('works')
-    .select('id, category_id')
-    .eq('id', workId)
-    .maybeSingle();
-  if (currentError || !current) {
-    console.error('getStandaloneWorksAdmin failed', currentError?.message ?? 'work not found');
-    return [];
-  }
-
-  const { data: extraRows } = await supabase.from('work_categories').select('category_id').eq('work_id', workId);
-  const categoryIds = Array.from(new Set([current.category_id, ...(extraRows ?? []).map((row) => row.category_id)]));
-
-  const { data: viaExtra } = await supabase.from('work_categories').select('work_id').in('category_id', categoryIds);
-  const viaExtraIds = Array.from(new Set((viaExtra ?? []).map((row) => row.work_id)));
-
-  const orParts = [`category_id.in.(${categoryIds.join(',')})`];
-  if (viaExtraIds.length) orParts.push(`id.in.(${viaExtraIds.join(',')})`);
-
+  // Показываем все самостоятельные работы. Ограничение по пересечению
+  // категорий остаётся на серверном attachWorkToGroup, а поиск в админке
+  // теперь не скрывает потенциально нужный товар заранее.
   const { data, error } = await supabase
     .from('works')
     .select(WORK_SELECT)
     .neq('id', workId)
-    .or(orParts.join(','))
     .order('sort_order', { ascending: true });
   if (error) {
     console.error('getStandaloneWorksAdmin failed', error.message);
     return [];
   }
-  // group_id === id значит «сам себе группа», то есть товар пока ни к кому
-  // не привязан как цветовой вариант.
-  return (data ?? []).map(attachUrls).filter((work) => work.group_id === work.id);
+
+  const works = (data ?? []).map(attachUrls).filter((work) => work.group_id === work.id);
+  if (works.length === 0) return [];
+
+  const { data: extraRows } = await supabase
+    .from('work_categories')
+    .select('work_id, category_id')
+    .in('work_id', works.map((work) => work.id));
+  const extraByWork = new Map<string, string[]>();
+  for (const row of extraRows ?? []) {
+    const list = extraByWork.get(row.work_id) ?? [];
+    list.push(row.category_id);
+    extraByWork.set(row.work_id, list);
+  }
+  return works.map((work) => ({ ...work, extraCategoryIds: extraByWork.get(work.id) ?? [] }));
 }
 
 // Id дополнительных категорий товара (без основной category_id) — для
