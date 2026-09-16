@@ -118,7 +118,7 @@ export function ImageSetField({
                 <button type="button" onClick={() => move(index, -1)} disabled={index === 0} className="flex h-7 w-7 items-center justify-center rounded-full bg-white/15 text-xs text-white disabled:opacity-30">←</button>
                 <button type="button" onClick={() => move(index, 1)} disabled={index === slots.length - 1} className="flex h-7 w-7 items-center justify-center rounded-full bg-white/15 text-xs text-white disabled:opacity-30">→</button>
               </div>
-              <button type="button" onClick={() => remove(index)} className="mt-1 rounded-full bg-red-400/25 px-3 py-1 text-[10px] uppercase tracking-[0.1em] text-red-100">Убрать</button>
+              <button type="button" onClick={() => remove(index)} className="mt-1 rounded-full bg-danger/25 px-3 py-1 text-[10px] uppercase tracking-[0.1em] text-danger">Убрать</button>
             </div>
             <span className="absolute left-1.5 top-1.5 bg-black/60 px-1.5 py-0.5 text-[9px] text-white/80">{String(index + 1).padStart(2, '0')}</span>
           </div>

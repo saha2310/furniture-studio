@@ -131,7 +131,7 @@ export function SingleImageField({
         <button type="button" onClick={() => setLibraryOpen(true)} className="border border-ink/15 px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-ink/75 hover:border-ink/40 hover:text-ink">
           Открыть галерею
         </button>
-        {currentUrl && <button type="button" onClick={clear} className="border border-red-400/20 px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-red-200 hover:border-red-300/50">Удалить</button>}
+        {currentUrl && <button type="button" onClick={clear} className="border border-danger/20 px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-danger hover:border-danger/50">Удалить</button>}
         {file && <button type="button" onClick={openEditor} className="border border-ink/15 px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-ink/75 hover:border-ink/40 hover:text-ink">Обрезать</button>}
       </div>
 

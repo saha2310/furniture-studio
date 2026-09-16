@@ -174,7 +174,7 @@ export function BackupPanel() {
             description="Текущие категории, товары, фото, меню и способы связи будут удалены и заменены содержимым архива. Действие необратимо — сделайте свежий бэкап текущего состояния перед этим, если не уверены."
             confirmLabel="Да, заменить всё"
             onConfirm={() => runImport('replace')}
-            triggerClassName="min-h-11 rounded border border-red-300/25 bg-red-300/10 px-5 py-2.5 text-[15px] text-red-100 hover:bg-red-300/15"
+            triggerClassName="min-h-11 rounded border border-danger/25 bg-danger/10 px-5 py-2.5 text-[15px] text-danger hover:bg-danger/15"
           />
         </div>
 

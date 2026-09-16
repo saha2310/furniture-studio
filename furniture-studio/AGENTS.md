@@ -87,6 +87,7 @@ export async function createX(_prev: ActionResult | null, formData: FormData): P
 0004_sync_schema.sql          — синхронизация схемы
 0005_backup_staging_bucket.sql — bucket для модуля backup
 0006_work_color_variants.sql  — цветовые варианты работ (group_id, is_primary)
+0007_work_categories.sql      — доп. категории работы (works.category_id остаётся основной)
 ```
 
 RLS-политики МОГУТ переопределяться в поздних миграциях — прежде чем

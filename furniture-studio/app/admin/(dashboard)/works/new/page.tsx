@@ -1,7 +1,8 @@
-import { getCategories, getWorkGroupVariantsAdmin } from '@/lib/queries/works';
+import { getCategories, getWorkGroupVariantsAdmin, getUsedColorsAdmin } from '@/lib/queries/works';
 import { createWork } from '@/lib/actions/works';
 import { WorkForm } from '@/components/admin/works/WorkForm';
 import { PageHeader } from '@/components/admin/shared/PageHeader';
+import type { WorkWithUrls } from '@/types/domain';
 
 export default async function NewWorkPage({ searchParams }: { searchParams: { group?: string; category?: string; title?: string } }) {
   const categories = await getCategories();
@@ -10,7 +11,10 @@ export default async function NewWorkPage({ searchParams }: { searchParams: { gr
   // но остаются редактируемыми, а фотографии/цвет — свои с нуля.
   const groupId = searchParams.group?.trim() || undefined;
   const isAddingColor = !!groupId;
-  const colorVariants = groupId ? await getWorkGroupVariantsAdmin(groupId) : [];
+  const [colorVariants, usedColors] = await Promise.all([
+    groupId ? getWorkGroupVariantsAdmin(groupId) : Promise.resolve<WorkWithUrls[]>([]),
+    getUsedColorsAdmin(),
+  ]);
 
   return (
     <div className="max-w-6xl">
@@ -29,6 +33,7 @@ export default async function NewWorkPage({ searchParams }: { searchParams: { gr
             redirectToDetailOnSuccess
             groupId={groupId}
             colorVariants={colorVariants}
+            usedColors={usedColors}
             prefillTitle={isAddingColor ? searchParams.title : undefined}
             prefillCategoryId={isAddingColor ? searchParams.category : undefined}
           />

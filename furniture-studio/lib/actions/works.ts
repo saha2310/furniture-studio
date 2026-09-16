@@ -42,6 +42,7 @@ function parseWorkFields(formData: FormData) {
     title,
     slug: normalizedSlug,
     category_id: formData.get('category_id'),
+    category_ids: formData.getAll('category_ids').map(String),
     description: formData.get('description'),
     price: formData.get('price_mode') === 'negotiable' ? 'По договорённости' : formData.get('price'),
     is_featured: formData.get('is_featured') === 'on',
@@ -107,6 +108,50 @@ async function ensureGroupHasPrimary(
   if (!remaining || remaining.length === 0) return;
   if (remaining.some((w) => w.is_primary)) return;
   await supabase.from('works').update({ is_primary: true }).eq('id', remaining[0].id);
+}
+
+// Приводит work_categories к переданному списку доп. категорий: строка с
+// основной category_id сюда никогда не пишется (она и так есть в самой
+// works), даже если админ случайно оставил галочку на своей же основной
+// категории в форме — просто отфильтровываем дубль молча, ошибкой это не
+// считаем. Полная замена (delete + insert), а не diff — записей мало
+// (десяток категорий на сайт), а код проще и не может рассинхронизироваться.
+async function syncWorkCategories(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  workId: string,
+  primaryCategoryId: string,
+  selectedCategoryIds: string[],
+): Promise<{ success: boolean; message?: string }> {
+  const extra = Array.from(new Set(selectedCategoryIds)).filter((id) => id && id !== primaryCategoryId);
+
+  const { error: deleteError } = await supabase.from('work_categories').delete().eq('work_id', workId);
+  if (deleteError) return { success: false, message: actionError('Не удалось обновить список категорий.', deleteError) };
+
+  if (extra.length === 0) return { success: true };
+
+  const { error: insertError } = await supabase
+    .from('work_categories')
+    .insert(extra.map((category_id) => ({ work_id: workId, category_id })));
+  if (insertError) return { success: false, message: actionError('Не удалось сохранить дополнительные категории.', insertError) };
+
+  return { success: true };
+}
+
+// Полный набор категорий товара: основная + все дополнительные (для
+// сравнения "пересекаются ли категории двух товаров" при группировке
+// цветовых вариантов — см. attachWorkToGroup ниже).
+async function getWorkCategorySet(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  workId: string,
+  primaryCategoryId: string,
+): Promise<Set<string>> {
+  const { data } = await supabase.from('work_categories').select('category_id').eq('work_id', workId);
+  return new Set([primaryCategoryId, ...(data ?? []).map((row) => row.category_id)]);
+}
+
+function hasOverlap(a: Set<string>, b: Set<string>): boolean {
+  for (const id of a) if (b.has(id)) return true;
+  return false;
 }
 
 async function syncWorkImages(
@@ -326,6 +371,12 @@ export async function createWork(_prev: ActionResult | null, formData: FormData)
     await clearOtherPrimaries(supabase, groupId, data.id);
   }
 
+  const categoriesResult = await syncWorkCategories(supabase, data.id, parsed.data.category_id, parsed.data.category_ids);
+  if (!categoriesResult.success) {
+    await supabase.from('works').delete().eq('id', data.id);
+    return { success: false, message: categoriesResult.message ?? 'Не удалось сохранить категории.' };
+  }
+
   const imageResult = await syncWorkImages(supabase, data.id, formData);
   if (!imageResult.success) {
     await supabase.from('works').delete().eq('id', data.id);
@@ -418,6 +469,11 @@ export async function updateWork(
   } else if (current.is_primary) {
     // Сняли «основной» с единственного, кто им был, — группе нужен новый.
     await ensureGroupHasPrimary(supabase, current.group_id);
+  }
+
+  const categoriesResult = await syncWorkCategories(supabase, workId, parsed.data.category_id, parsed.data.category_ids);
+  if (!categoriesResult.success) {
+    return { success: false, message: categoriesResult.message ?? 'Не удалось сохранить категории.' };
   }
 
   const imageResult = await syncWorkImages(supabase, workId, formData);
@@ -539,7 +595,21 @@ export async function attachWorkToGroup(workId: string, targetGroupId: string): 
 
   const { data: target, error: targetError } = await supabase.from('works').select('id, category_id').eq('id', targetGroupId).maybeSingle();
   if (targetError || !target) return { success: false, message: 'Целевая группа не найдена.' };
-  if (target.category_id !== current.category_id) return { success: false, message: 'Варианты одного товара должны быть в одной категории.' };
+
+  // Раньше требовалось точное совпадение category_id. С появлением
+  // дополнительных категорий (work_categories) это стало слишком строгим:
+  // например, у дивана основная категория «Диваны», а у кресла — «Кресла»,
+  // но если оба параллельно отмечены как «Диваны+Кресла» (общая коллекция),
+  // это по смыслу один продукт в разных цветах. Поэтому сравниваем полные
+  // наборы категорий (основная + доп.) — достаточно, чтобы они хотя бы
+  // пересекались.
+  const [currentCategories, targetCategories] = await Promise.all([
+    getWorkCategorySet(supabase, current.id, current.category_id),
+    getWorkCategorySet(supabase, target.id, target.category_id),
+  ]);
+  if (!hasOverlap(currentCategories, targetCategories)) {
+    return { success: false, message: 'У товаров нет общей категории — варианты одного товара должны иметь хотя бы одну общую категорию.' };
+  }
 
   const { error } = await supabase.from('works').update({ group_id: targetGroupId, is_primary: false }).eq('id', workId);
   if (error) return { success: false, message: actionError('Не удалось прикрепить товар как цвет.', error) };

@@ -17,6 +17,13 @@ import { WorkImageEditor } from './WorkImageEditor';
 
 const DEFAULT_SWATCH_HEX = '#8a7b6c';
 
+// Уже использованный где-то цвет — для быстрого выбора вместо повторного
+// подбора hex вручную (см. getUsedColorsAdmin).
+interface UsedColor {
+  name: string;
+  hex: string;
+}
+
 interface WorkFormProps {
   categories: Category[];
   initialData?: WorkWithUrls;
@@ -27,10 +34,55 @@ interface WorkFormProps {
   groupId?: string;
   prefillTitle?: string;
   prefillCategoryId?: string;
-  // Самостоятельные товары той же категории, ещё не привязанные ни к одной
-  // группе цветов — кандидаты для «+ Существующий товар». Только для
-  // редактирования: при создании нового товара прикреплять пока нечего.
+  // Товары, у которых есть хотя бы одна общая категория с текущим и которые
+  // ещё не привязаны ни к одной группе цветов — кандидаты для «+ Существующий
+  // товар». Только для редактирования: при создании нового товара прикреплять
+  // пока нечего.
   attachCandidates?: WorkWithUrls[];
+  // Цвета, уже встречавшиеся у других товаров — для подсказки-выбора рядом
+  // с полями «Название цвета» / «Оттенок».
+  usedColors?: UsedColor[];
+}
+
+// Компактная квадратная кнопка-плюс — общий вид для «+ Новый цвет» и
+// «+ Существующий товар» над формой. Раньше это были просто текстовые
+// ссылки вплотную друг к другу — легко было промахнуться и не сразу понятно,
+// что это два разных, кликабельных действия. Квадрат с иконкой и подписью
+// снизу — тот же язык, что у остальных мелких управляющих элементов формы
+// (аптайм-регистр, крошечный кегль), но с явной кликабельной областью.
+function AddSquareButton({
+  label,
+  title,
+  onClick,
+  href,
+}: {
+  label: string;
+  title: string;
+  onClick?: () => void;
+  href?: string;
+}) {
+  const className =
+    'group flex h-14 w-14 shrink-0 flex-col items-center justify-center gap-1 border border-dashed border-ink/20 text-ink/45 transition hover:border-ink/45 hover:text-ink';
+  const content = (
+    <>
+      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" aria-hidden="true">
+        <path d="M12 5v14M5 12h14" />
+      </svg>
+      <span className="text-center text-[7px] uppercase leading-tight tracking-[0.08em]">{label}</span>
+    </>
+  );
+  if (href) {
+    return (
+      <Link href={href} title={title} aria-label={title} className={className}>
+        {content}
+      </Link>
+    );
+  }
+  return (
+    <button type="button" onClick={onClick} title={title} aria-label={title} className={className}>
+      {content}
+    </button>
+  );
 }
 
 function SaveButton({ label, busy }: { label: string; busy?: boolean }) {
@@ -64,6 +116,9 @@ function StatusPill({ published }: { published: boolean }) {
 function AttachExistingModal({ groupId, candidates, onClose }: { groupId: string; candidates: WorkWithUrls[]; onClose: () => void }) {
   const router = useRouter();
   const [query, setQuery] = useState('');
+  // '' = «Все категории». Полезен, только если среди кандидатов реально
+  // встречается больше одной категории — иначе просто не рендерится.
+  const [categoryFilter, setCategoryFilter] = useState('');
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const titleId = useId();
@@ -76,7 +131,22 @@ function AttachExistingModal({ groupId, candidates, onClose }: { groupId: string
     return () => { document.body.style.overflow = previous; document.removeEventListener('keydown', onKeyDown); };
   }, [onClose, pendingId]);
 
-  const filtered = candidates.filter((c) => c.title.toLowerCase().includes(query.trim().toLowerCase()));
+  // Категории, реально встречающиеся среди кандидатов (с появлением доп.
+  // категорий кандидаты уже не обязаны быть из одной категории — см.
+  // getStandaloneWorksAdmin), чтобы можно было сузить длинный список.
+  const availableCategories = Array.from(
+    new Map(candidates.map((c) => [c.category_id, c.category?.name ?? 'Без категории'])).entries()
+  );
+
+  const normalizedQuery = query.trim().toLowerCase();
+  const filtered = candidates.filter((c) => {
+    if (categoryFilter && c.category_id !== categoryFilter) return false;
+    if (!normalizedQuery) return true;
+    return (
+      c.title.toLowerCase().includes(normalizedQuery) ||
+      (c.color_name ?? '').toLowerCase().includes(normalizedQuery)
+    );
+  });
 
   async function handleAttach(id: string) {
     setPendingId(id);
@@ -97,25 +167,35 @@ function AttachExistingModal({ groupId, candidates, onClose }: { groupId: string
         <div className="flex items-center justify-between gap-4 border-b border-ink/10 p-5">
           <div>
             <h2 id={titleId} className="text-lg text-ink">Привязать существующий товар</h2>
-            <p className="mt-1 text-xs leading-5 text-ink/40">Товар станет цветовым вариантом этой группы. Показаны только товары той же категории, ещё не привязанные к другой группе цветов.</p>
+            <p className="mt-1 text-xs leading-5 text-ink/40">Товар станет цветовым вариантом этой группы. Показаны товары, у которых есть хотя бы одна общая категория с текущим и которые ещё не привязаны к другой группе цветов.</p>
           </div>
           <button type="button" onClick={onClose} disabled={!!pendingId} className="shrink-0 text-2xl leading-none text-ink/50 hover:text-ink disabled:opacity-40" aria-label="Закрыть">×</button>
         </div>
 
-        <div className="border-b border-ink/10 p-4">
+        <div className="flex flex-col gap-2 border-b border-ink/10 p-4 sm:flex-row">
           <input
             autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Поиск по названию…"
-            className="h-11 w-full border border-ink/15 bg-transparent px-3 text-sm text-ink placeholder:text-ink/35 focus:border-ink/40"
+            placeholder="Поиск по названию или цвету…"
+            className="h-11 min-w-0 flex-1 border border-ink/15 bg-transparent px-3 text-sm text-ink placeholder:text-ink/35 focus:border-ink/40"
           />
+          {availableCategories.length > 1 && (
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="h-11 shrink-0 border border-ink/15 bg-transparent px-3 text-sm text-ink focus:border-ink/40 sm:w-52"
+            >
+              <option value="">Все категории</option>
+              {availableCategories.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+            </select>
+          )}
         </div>
 
         <div className="flex-1 overflow-y-auto p-2">
           {filtered.length === 0 ? (
             <p className="px-3 py-10 text-center text-sm text-ink/40">
-              {candidates.length === 0 ? 'Нет свободных товаров этой категории — все либо уже входят в группы цветов, либо это единственный товар в категории.' : 'Ничего не найдено.'}
+              {candidates.length === 0 ? 'Нет свободных товаров с общей категорией — все либо уже входят в группы цветов, либо ни с чем не пересекаются по категориям.' : 'Ничего не найдено. Попробуйте другой запрос или снимите фильтр категории.'}
             </p>
           ) : (
             <ul>
@@ -141,7 +221,7 @@ function AttachExistingModal({ groupId, candidates, onClose }: { groupId: string
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm text-ink">{c.title}</span>
                         <span className="mt-0.5 block truncate text-[10px] uppercase tracking-[0.1em] text-ink/35">
-                          {c.color_name || 'Без названия цвета'}{c.status === 'draft' ? ' · Черновик' : ''}
+                          {c.color_name || 'Без названия цвета'} · {c.category?.name ?? 'Без категории'}{c.status === 'draft' ? ' · Черновик' : ''}
                         </span>
                       </span>
                       {isPending && <span className="shrink-0 text-[10px] text-ink/40">Привязываем…</span>}
@@ -151,7 +231,7 @@ function AttachExistingModal({ groupId, candidates, onClose }: { groupId: string
               })}
             </ul>
           )}
-          {error && <p role="alert" className="mx-3 mt-2 border border-red-300/20 bg-red-300/5 px-3 py-2 text-xs leading-5 text-red-200">{error}</p>}
+          {error && <p role="alert" className="mx-3 mt-2 border border-danger/20 bg-danger/5 px-3 py-2 text-xs leading-5 text-danger">{error}</p>}
         </div>
       </div>
     </div>
@@ -171,16 +251,10 @@ function AttachExistingPicker({ groupId, candidates }: { groupId: string; candid
   if (candidates.length === 0) return null;
 
   return (
-    <div className="shrink-0">
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="whitespace-nowrap px-1 text-[9px] uppercase tracking-[0.14em] text-ink/50 hover:text-ink"
-      >
-        + Существующий товар
-      </button>
+    <>
+      <AddSquareButton label="Товар" title="Привязать существующий товар как цвет" onClick={() => setOpen(true)} />
       {open && <AttachExistingModal groupId={groupId} candidates={candidates} onClose={() => setOpen(false)} />}
-    </div>
+    </>
   );
 }
 
@@ -265,7 +339,7 @@ function VariantBar({
                   title="Удалить товар вместе с этим цветом?"
                   description={`Товар «${currentTitle || currentColorName || 'без названия'}» и его фотографии будут удалены без возможности восстановления. Если нужно просто убрать связь с другими цветами — используйте «Открепить».`}
                   onConfirm={handleDeleteCurrent}
-                  triggerClassName="flex h-5 w-5 items-center justify-center rounded-full text-sm leading-none text-ink/40 hover:bg-red-300/10 hover:text-red-200"
+                  triggerClassName="flex h-5 w-5 items-center justify-center rounded-full text-sm leading-none text-ink/40 hover:bg-danger/10 hover:text-danger"
                 />
               </>
             )}
@@ -289,26 +363,29 @@ function VariantBar({
               title="Удалить товар вместе с этим цветом?"
               description={`Товар «${sibling.title}» и его фотографии будут удалены без возможности восстановления. Если нужно просто убрать связь с другими цветами — используйте «Открепить».`}
               onConfirm={() => handleDeleteSibling(sibling.id)}
-              triggerClassName="flex h-5 w-5 items-center justify-center rounded-full text-sm leading-none text-ink/30 hover:bg-red-300/10 hover:text-red-200"
+              triggerClassName="flex h-5 w-5 items-center justify-center rounded-full text-sm leading-none text-ink/30 hover:bg-danger/10 hover:text-danger"
             />
           </span>
         ))}
       </div>
-      <div className="flex shrink-0 items-center gap-3 border-l border-ink/10 pl-3">
-        <Link href={addHref} className="shrink-0 whitespace-nowrap px-1 text-[9px] uppercase tracking-[0.14em] text-ink/50 hover:text-ink">+ Новый цвет</Link>
+      <div className="flex shrink-0 items-center gap-2 border-l border-ink/10 pl-3">
+        <AddSquareButton label="Цвет" title="Добавить новый цвет этого товара" href={addHref} />
         {groupId && <AttachExistingPicker groupId={groupId} candidates={attachCandidates} />}
       </div>
     </div>
   );
 }
 
-export function WorkForm({ categories, initialData, action, submitLabel, redirectToDetailOnSuccess, colorVariants = [], groupId, prefillTitle, prefillCategoryId, attachCandidates = [] }: WorkFormProps) {
+export function WorkForm({ categories, initialData, action, submitLabel, redirectToDetailOnSuccess, colorVariants = [], groupId, prefillTitle, prefillCategoryId, attachCandidates = [], usedColors = [] }: WorkFormProps) {
   const router = useRouter();
   const [state, formAction] = useFormState(action, null);
   const [title, setTitle] = useState(initialData?.title ?? prefillTitle ?? '');
   const [slug, setSlug] = useState(initialData?.slug ?? (prefillTitle ? slugify(prefillTitle) : ''));
   const [slugTouched, setSlugTouched] = useState(!!initialData);
   const [categoryId, setCategoryId] = useState(initialData?.category_id ?? prefillCategoryId ?? '');
+  // Дополнительные категории (галочки, помимо основной category_id выше) —
+  // см. work_categories / 0007_work_categories.sql.
+  const [extraCategoryIds, setExtraCategoryIds] = useState<string[]>(initialData?.extraCategoryIds ?? []);
   const [priceMode, setPriceMode] = useState(initialData?.price === 'По договорённости' || !initialData?.price ? 'negotiable' : 'fixed');
   const [specs, setSpecs] = useState<Array<{ key: string; value: string }>>(initialData?.specs ? Object.entries(initialData.specs).map(([key, value]) => ({ key, value })) : [{ key: '', value: '' }]);
   const [colorName, setColorName] = useState(initialData?.color_name ?? '');
@@ -335,6 +412,25 @@ export function WorkForm({ categories, initialData, action, submitLabel, redirec
   const isPartOfGroup = colorVariants.length > 0 || !!groupId;
   const heroImage = initialData?.images?.find((image) => image.id === initialData.cover_image_id)?.url ?? initialData?.images?.[0]?.url;
   const published = initialData?.status !== 'draft';
+
+  // Категория не может одновременно быть и основной, и «дополнительной» —
+  // если админ переключил основную категорию на ту, что уже была отмечена
+  // галочкой ниже, снимаем галочку молча (сервер и так проигнорировал бы
+  // дубль, но в списке чекбоксов оставлять «фантомную» отметку не нужно —
+  // она относится к пункту, которого там уже не будет).
+  function handleCategoryIdChange(nextId: string) {
+    setCategoryId(nextId);
+    setExtraCategoryIds((ids) => ids.filter((id) => id !== nextId));
+  }
+
+  function toggleExtraCategory(id: string) {
+    setExtraCategoryIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
+  }
+
+  function applyUsedColor(color: UsedColor) {
+    setColorName(color.name);
+    setColorHex(color.hex);
+  }
 
   useEffect(() => {
     if (state?.success) {
@@ -425,7 +521,7 @@ export function WorkForm({ categories, initialData, action, submitLabel, redirec
             <Input name="slug" label="URL / slug" required value={slug} onChange={(e) => { const value = e.target.value; setSlug(value); setSlugTouched(value.trim() !== ''); }} />
           </div>
           <div className="mt-5 grid gap-5 sm:grid-cols-2">
-            <Select name="category_id" label="Категория" required value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+            <Select name="category_id" label="Категория" required value={categoryId} onChange={(e) => handleCategoryIdChange(e.target.value)}>
               <option value="" disabled>Выберите категорию</option>
               {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
             </Select>
@@ -433,6 +529,29 @@ export function WorkForm({ categories, initialData, action, submitLabel, redirec
               <option value="published">Опубликовано</option><option value="draft">Черновик</option>
             </Select>
           </div>
+          {categories.length > 1 && (
+            <div className="mt-5">
+              <p className="mb-2 text-[11px] uppercase tracking-[0.12em] text-espresso">Также показывать в категориях</p>
+              <div className="flex flex-wrap gap-x-5 gap-y-2">
+                {categories
+                  .filter((category) => category.id !== categoryId)
+                  .map((category) => (
+                    <label key={category.id} className="flex items-center gap-2 text-sm text-ink/75">
+                      <input
+                        type="checkbox"
+                        name="category_ids"
+                        value={category.id}
+                        checked={extraCategoryIds.includes(category.id)}
+                        onChange={() => toggleExtraCategory(category.id)}
+                        className="h-4 w-4 accent-[rgb(var(--color-ink))]"
+                      />
+                      {category.name}
+                    </label>
+                  ))}
+              </div>
+              <p className="mt-2 text-xs leading-5 text-ink/35">Работа останется в основной категории (выше) и дополнительно появится в отмеченных.</p>
+            </div>
+          )}
           <div className="mt-5"><Textarea name="description" label="Описание" rows={7} defaultValue={initialData?.description ?? ''} /></div>
         </section>
 
@@ -442,6 +561,25 @@ export function WorkForm({ categories, initialData, action, submitLabel, redirec
             <Input name="color_name" label="Название цвета" placeholder="Например, Мокко" value={colorName} onChange={(e) => setColorName(e.target.value)} />
             <div><label className="mb-2 block text-[11px] uppercase tracking-[0.12em] text-espresso">Оттенок</label><div className="flex h-12 gap-2"><input type="color" name="color_hex" value={colorHex || DEFAULT_SWATCH_HEX} onChange={(e) => setColorHex(e.target.value)} className="h-12 w-14 cursor-pointer border border-ink/10 bg-canvas p-1" /><input type="text" value={colorHex} onChange={(e) => setColorHex(e.target.value)} placeholder="#8a7b6c" className="h-12 min-w-0 flex-1 border border-ink/15 bg-transparent px-3 text-sm text-ink placeholder:text-stone focus:border-ink/45" /></div></div>
           </div>
+          {usedColors.length > 0 && (
+            <div className="mt-4">
+              <p className="mb-2 text-[10px] uppercase tracking-[0.12em] text-ink/35">Уже использовались — нажмите, чтобы применить</p>
+              <div className="flex flex-wrap gap-2">
+                {usedColors.map((color) => (
+                  <button
+                    key={color.hex}
+                    type="button"
+                    onClick={() => applyUsedColor(color)}
+                    title={color.name}
+                    className={`inline-flex h-8 items-center gap-1.5 border pl-1.5 pr-2.5 text-xs transition ${colorHex.toLowerCase() === color.hex.toLowerCase() ? 'border-ink/40 text-ink' : 'border-ink/10 text-ink/55 hover:border-ink/25 hover:text-ink'}`}
+                  >
+                    <span className="h-4 w-4 shrink-0 rounded-full border border-ink/15" style={{ backgroundColor: color.hex }} />
+                    <span className="max-w-[9rem] truncate">{color.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           {isPartOfGroup && <label className="mt-5 flex items-start gap-3 border-t border-ink/10 pt-5 text-sm text-ink/75"><input type="checkbox" name="is_primary" defaultChecked={initialData?.is_primary ?? !colorVariants.length} className="mt-0.5 h-4 w-4 accent-[rgb(var(--color-ink))]" /><span><span className="block text-ink">Основной вариант</span><span className="mt-1 block text-xs leading-5 text-ink/40">Используется по умолчанию в каталоге.</span></span></label>}
         </section>
 

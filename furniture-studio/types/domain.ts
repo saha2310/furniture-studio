@@ -12,6 +12,11 @@ export interface WorkWithRelations extends WorkRow {
   category: Category;
   images: WorkImage[];
   coverImage: WorkImage | null;
+  // Id дополнительных категорий (см. work_categories / 0007_work_categories.sql),
+  // без учёта основной category_id. Заполняется только там, где это реально
+  // нужно (форма редактирования в админке) — на остальных выборках может
+  // отсутствовать, поэтому необязательное поле.
+  extraCategoryIds?: string[];
 }
 
 // Публичный URL строится из storage_path в lib/utils/image.ts.

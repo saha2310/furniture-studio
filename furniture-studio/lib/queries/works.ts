@@ -98,6 +98,21 @@ async function attachColorVariantsBulk(
   }));
 }
 
+// Строка .or()-фильтра supabase-js: товар подходит под категорию, если она
+// у него основная (category_id) ИЛИ отмечена как дополнительная в
+// work_categories (см. 0007_work_categories.sql). Нужна и на публичном
+// сайте (каталог, доступные цвета), и в админке (кандидаты на привязку цвета).
+async function categoryMembershipOrFilter(
+  supabase: ReturnType<typeof createStaticClient> | Awaited<ReturnType<typeof createClient>>,
+  categoryId: string,
+): Promise<string> {
+  const { data } = await supabase.from('work_categories').select('work_id').eq('category_id', categoryId);
+  const workIds = Array.from(new Set((data ?? []).map((row) => row.work_id)));
+  const parts = [`category_id.eq.${categoryId}`];
+  if (workIds.length) parts.push(`id.in.(${workIds.join(',')})`);
+  return parts.join(',');
+}
+
 export async function getCategories(): Promise<Category[]> {
   const supabase = createStaticClient();
   const { data, error } = await supabase.from('categories').select('*').order('sort_order');
@@ -130,7 +145,7 @@ export async function getPublishedWorksPage(
       .eq('slug', categorySlug)
       .maybeSingle();
     if (!category) return { works: [], total: 0, hasMore: false };
-    query = query.eq('category_id', category.id);
+    query = query.or(await categoryMembershipOrFilter(supabase, category.id));
   }
 
   const safePage = Math.max(1, page);
@@ -160,7 +175,7 @@ export async function getPublishedWorks(categorySlug?: string): Promise<WorkWith
       .eq('slug', categorySlug)
       .maybeSingle();
     if (!category) return [];
-    query = query.eq('category_id', category.id);
+    query = query.or(await categoryMembershipOrFilter(supabase, category.id));
   }
 
   const { data, error } = await query;
@@ -195,7 +210,7 @@ export async function getPublishedWorksPageGrouped(
       .eq('slug', categorySlug)
       .maybeSingle();
     if (!category) return { works: [], total: 0, hasMore: false };
-    query = query.eq('category_id', category.id);
+    query = query.or(await categoryMembershipOrFilter(supabase, category.id));
   }
 
   const { data, error } = await query;
@@ -222,7 +237,7 @@ export async function getAvailableColors(categorySlug?: string): Promise<Array<{
   if (categorySlug) {
     const { data: category } = await supabase.from('categories').select('id').eq('slug', categorySlug).maybeSingle();
     if (!category) return [];
-    query = query.eq('category_id', category.id);
+    query = query.or(await categoryMembershipOrFilter(supabase, category.id));
   }
 
   const { data, error } = await query;
@@ -333,21 +348,47 @@ export async function getWorkGroupVariantsAdmin(groupId: string, excludeId?: str
   return (data ?? []).map(attachUrls);
 }
 
-// Для «+ Существующий товар» в VariantBar: самостоятельные товары той же
-// категории, ещё не состоящие ни в чьей группе цветов (group_id === id —
-// то же условие, что использует detachWorkFromGroup/триггер по умолчанию).
-// Само условие "не в группе" защищает от случайного слияния двух уже
-// готовых групп друг с другом через этот пикер.
-export async function getStandaloneWorksAdmin(categoryId: string, excludeId?: string): Promise<WorkWithUrls[]> {
+// Для «+ Существующий товар» в VariantBar: самостоятельные товары, ещё не
+// состоящие ни в чьей группе цветов (group_id === id — то же условие, что
+// использует detachWorkFromGroup/триггер по умолчанию), у которых есть хотя
+// бы одна общая категория с текущим товаром (основная ИЛИ дополнительная —
+// см. attachWorkToGroup, который проверяет то же самое пересечение на
+// сервере при сохранении). Раньше кандидатов искали строго по точному
+// совпадению одной category_id — из-за этого пикер показывал заметно
+// меньше товаров, чем реально можно было привязать, и было непонятно,
+// почему нужный товар не находится. С появлением доп. категорий условие
+// расширено, а не сужено, поэтому регрессии в старом (однокатегорийном)
+// случае нет: пересечение с самим собой по единственной категории — то же
+// самое точное совпадение, что было раньше.
+export async function getStandaloneWorksAdmin(workId: string): Promise<WorkWithUrls[]> {
   await requireUser();
   const supabase = await createClient();
-  let query = supabase
+
+  const { data: current, error: currentError } = await supabase
+    .from('works')
+    .select('id, category_id')
+    .eq('id', workId)
+    .maybeSingle();
+  if (currentError || !current) {
+    console.error('getStandaloneWorksAdmin failed', currentError?.message ?? 'work not found');
+    return [];
+  }
+
+  const { data: extraRows } = await supabase.from('work_categories').select('category_id').eq('work_id', workId);
+  const categoryIds = Array.from(new Set([current.category_id, ...(extraRows ?? []).map((row) => row.category_id)]));
+
+  const { data: viaExtra } = await supabase.from('work_categories').select('work_id').in('category_id', categoryIds);
+  const viaExtraIds = Array.from(new Set((viaExtra ?? []).map((row) => row.work_id)));
+
+  const orParts = [`category_id.in.(${categoryIds.join(',')})`];
+  if (viaExtraIds.length) orParts.push(`id.in.(${viaExtraIds.join(',')})`);
+
+  const { data, error } = await supabase
     .from('works')
     .select(WORK_SELECT)
-    .eq('category_id', categoryId)
+    .neq('id', workId)
+    .or(orParts.join(','))
     .order('sort_order', { ascending: true });
-  if (excludeId) query = query.neq('id', excludeId);
-  const { data, error } = await query;
   if (error) {
     console.error('getStandaloneWorksAdmin failed', error.message);
     return [];
@@ -355,6 +396,40 @@ export async function getStandaloneWorksAdmin(categoryId: string, excludeId?: st
   // group_id === id значит «сам себе группа», то есть товар пока ни к кому
   // не привязан как цветовой вариант.
   return (data ?? []).map(attachUrls).filter((work) => work.group_id === work.id);
+}
+
+// Id дополнительных категорий товара (без основной category_id) — для
+// предзаполнения галочек в форме редактирования.
+export async function getWorkExtraCategoryIds(workId: string): Promise<string[]> {
+  await requireUser();
+  const supabase = await createClient();
+  const { data, error } = await supabase.from('work_categories').select('category_id').eq('work_id', workId);
+  if (error) {
+    console.error('getWorkExtraCategoryIds failed', error.message);
+    return [];
+  }
+  return (data ?? []).map((row) => row.category_id);
+}
+
+// Цвета, уже использованные хоть в одном товаре (включая черновики — это
+// админский список для быстрого выбора цвета) — чтобы не подбирать один и
+// тот же оттенок заново вручную и не плодить слегка отличающиеся hex для
+// визуально одного цвета в разных товарах.
+export async function getUsedColorsAdmin(): Promise<Array<{ name: string; hex: string }>> {
+  await requireUser();
+  const supabase = await createClient();
+  const { data, error } = await supabase.from('works').select('color_name, color_hex').not('color_hex', 'is', null);
+  if (error) {
+    console.error('getUsedColorsAdmin failed', error.message);
+    return [];
+  }
+  const seen = new Map<string, string>();
+  for (const row of data ?? []) {
+    if (row.color_hex && !seen.has(row.color_hex)) seen.set(row.color_hex, row.color_name || row.color_hex);
+  }
+  return Array.from(seen.entries())
+    .map(([hex, name]) => ({ hex, name }))
+    .sort((a, b) => a.name.localeCompare(b.name, 'ru'));
 }
 
 export async function getAllWorkSlugs(): Promise<string[]> {

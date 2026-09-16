@@ -277,7 +277,7 @@ export function ImageCropDialog({ sourceUrl, title = 'Редактор изоб�
             </div>
 
             <p className="text-xs leading-5 text-ink/60">Перетаскивайте фотографию внутри рамки. Колёсиком или ползунком меняйте масштаб.</p>
-            {error && <p role="alert" className="text-xs leading-5 text-red-300">{error}</p>}
+            {error && <p role="alert" className="text-xs leading-5 text-danger">{error}</p>}
 
             <div className="mt-auto grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
               <button type="button" onClick={onCancel} className="border border-ink/15 px-4 py-3 text-xs uppercase tracking-[0.12em] text-ink/75 hover:text-ink">Отмена</button>

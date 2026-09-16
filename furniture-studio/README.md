@@ -134,7 +134,7 @@ npm run dev
 ## Перед развёртыванием
 
 1. Примените все миграции из `supabase/migrations` к той же базе Supabase, которую использует Vercel.
-2. Особенно важны `0002_redesign_fields.sql` (цена, изображение категории, динамическое меню) и `0003_ensure_menu_defaults.sql`.
+2. Особенно важны `0002_redesign_fields.sql` (цена, изображение категории, динамическое меню), `0003_ensure_menu_defaults.sql` и `0007_work_categories.sql` (дополнительные категории у работы).
 3. Убедитесь, что Vercel использует `NEXT_PUBLIC_SUPABASE_URL` и `NEXT_PUBLIC_SUPABASE_ANON_KEY` именно этой базы.
 4. После изменения переменных окружения выполните новое production deployment.
 

@@ -47,7 +47,7 @@ export function ConfirmDialog({ triggerLabel, title, description, confirmLabel =
       <div role="alertdialog" aria-modal="true" aria-labelledby={titleId} className="w-full max-w-md border border-ink/10 bg-surface p-6 shadow-2xl sm:p-7">
         <h2 id={titleId} className="text-lg text-ink">{title}</h2>
         {description && <p className="mt-2 text-sm leading-6 text-ink/55">{description}</p>}
-        {error && <p role="alert" className="mt-4 border border-red-300/20 bg-red-300/5 px-3 py-2 text-xs leading-5 text-red-200">{error}</p>}
+        {error && <p role="alert" className="mt-4 border border-danger/20 bg-danger/5 px-3 py-2 text-xs leading-5 text-danger">{error}</p>}
         <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <button type="button" onClick={() => setOpen(false)} disabled={isPending} className="min-h-11 border border-ink/10 px-4 py-3 text-xs uppercase tracking-[0.12em] text-ink/55 hover:text-ink disabled:opacity-40">Отмена</button>
           <button
@@ -56,7 +56,7 @@ export function ConfirmDialog({ triggerLabel, title, description, confirmLabel =
             disabled={isPending}
             className={
               tone === 'danger'
-                ? 'min-h-11 border border-red-300/20 bg-red-300/10 px-4 py-3 text-xs uppercase tracking-[0.12em] text-red-100 hover:bg-red-300/15 disabled:opacity-40'
+                ? 'min-h-11 border border-danger/20 bg-danger/10 px-4 py-3 text-xs uppercase tracking-[0.12em] text-danger hover:bg-danger/15 disabled:opacity-40'
                 : 'min-h-11 border border-ink/15 bg-ink px-4 py-3 text-xs uppercase tracking-[0.12em] text-canvas hover:bg-espresso disabled:opacity-40'
             }
           >

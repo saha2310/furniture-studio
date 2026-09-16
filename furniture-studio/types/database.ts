@@ -92,6 +92,22 @@ export interface Database {
         };
         Update: Partial<Database['public']['Tables']['work_images']['Insert']>;
       };
+      // Дополнительные категории работы (см. 0007_work_categories.sql).
+      // Основная категория по-прежнему хранится в works.category_id — здесь
+      // только категории "вдобавок" к ней.
+      work_categories: {
+        Row: {
+          work_id: string;
+          category_id: string;
+          created_at: string;
+        };
+        Insert: {
+          work_id: string;
+          category_id: string;
+          created_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['work_categories']['Insert']>;
+      };
       site_settings: {
         Row: {
           id: number;

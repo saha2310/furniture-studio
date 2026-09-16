@@ -1,5 +1,12 @@
 import { notFound } from 'next/navigation';
-import { getWorkByIdAdmin, getCategories, getWorkGroupVariantsAdmin, getStandaloneWorksAdmin } from '@/lib/queries/works';
+import {
+  getWorkByIdAdmin,
+  getCategories,
+  getWorkGroupVariantsAdmin,
+  getStandaloneWorksAdmin,
+  getWorkExtraCategoryIds,
+  getUsedColorsAdmin,
+} from '@/lib/queries/works';
 import { updateWork } from '@/lib/actions/works';
 import { WorkForm } from '@/components/admin/works/WorkForm';
 import { PageHeader } from '@/components/admin/shared/PageHeader';
@@ -9,8 +16,12 @@ export default async function EditWorkPage({ params }: { params: { id: string } 
 
   if (!work) notFound();
 
-  const colorVariants = await getWorkGroupVariantsAdmin(work.group_id, work.id);
-  const attachCandidates = await getStandaloneWorksAdmin(work.category_id, work.id);
+  const [colorVariants, attachCandidates, extraCategoryIds, usedColors] = await Promise.all([
+    getWorkGroupVariantsAdmin(work.group_id, work.id),
+    getStandaloneWorksAdmin(work.id),
+    getWorkExtraCategoryIds(work.id),
+    getUsedColorsAdmin(),
+  ]);
 
   return (
     <div className="max-w-6xl">
@@ -19,9 +30,10 @@ export default async function EditWorkPage({ params }: { params: { id: string } 
       <div className="mt-6">
         <WorkForm
           categories={categories}
-          initialData={work}
+          initialData={{ ...work, extraCategoryIds }}
           colorVariants={colorVariants}
           attachCandidates={attachCandidates}
+          usedColors={usedColors}
           action={updateWork.bind(null, work.id)}
           submitLabel="Сохранить изменения"
         />

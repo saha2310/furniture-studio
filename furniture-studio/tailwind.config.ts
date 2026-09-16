@@ -16,6 +16,7 @@ const config: Config = {
         walnutDark: 'rgb(var(--color-walnut-dark) / <alpha-value>)',
         stone: 'rgb(var(--color-stone) / <alpha-value>)',
         espresso: 'rgb(var(--color-espresso) / <alpha-value>)',
+        danger: 'rgb(var(--color-danger) / <alpha-value>)',
       },
       fontFamily: {
         display: ['var(--font-sans)'],

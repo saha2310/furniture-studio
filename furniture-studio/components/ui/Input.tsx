@@ -7,8 +7,8 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({ label, error, i
   return (
     <div className="flex flex-col gap-2">
       {label && <label htmlFor={inputId} className="text-[11px] uppercase tracking-[0.12em] text-espresso">{label}</label>}
-      <input ref={ref} id={inputId} className={`h-12 border bg-transparent px-4 text-sm text-ink placeholder:text-stone transition-colors focus:border-ink/45 ${error ? 'border-red-400' : 'border-ink/15'} ${className}`} aria-invalid={!!error} aria-describedby={error ? `${inputId}-error` : undefined} {...props} />
-      {error && <p id={`${inputId}-error`} className="text-xs text-red-300">{error}</p>}
+      <input ref={ref} id={inputId} className={`h-12 border bg-transparent px-4 text-sm text-ink placeholder:text-stone transition-colors focus:border-ink/45 ${error ? 'border-danger' : 'border-ink/15'} ${className}`} aria-invalid={!!error} aria-describedby={error ? `${inputId}-error` : undefined} {...props} />
+      {error && <p id={`${inputId}-error`} className="text-xs text-danger">{error}</p>}
     </div>
   );
 });

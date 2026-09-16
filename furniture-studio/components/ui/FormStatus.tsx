@@ -6,7 +6,7 @@ export function FormStatus({ state }: { state: { status: 'idle' | 'success' | 'e
       className={`border px-4 py-3 text-sm ${
         state.status === 'success'
           ? 'border-ink/15 bg-ink/[0.03] text-ink/90'
-          : 'border-red-300/25 bg-red-300/5 text-red-200'
+          : 'border-danger/25 bg-danger/5 text-danger'
       }`}
     >
       {state.message ?? (state.status === 'success' ? 'Сохранено.' : 'Не удалось сохранить изменения.')}

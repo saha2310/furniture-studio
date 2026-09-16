@@ -12,6 +12,11 @@ export const workSchema = z.object({
     .max(120)
     .refine(isValidSlug, 'Slug может содержать только латиницу, цифры и дефисы'),
   category_id: z.string().uuid('Выберите категорию'),
+  // Дополнительные категории (галочки в форме, помимо основной category_id
+  // выше) — см. 0007_work_categories.sql. Список id категорий, может быть
+  // пустым (работа только в основной категории) или содержать дубль
+  // основной — на сервере дубль просто игнорируется при записи.
+  category_ids: z.array(z.string().uuid()).optional().default([]),
   description: z.string().trim().max(4000).optional().or(z.literal('')),
   price: z.string().trim().max(120).optional().or(z.literal('')),
   specs: z.record(z.string(), z.string()).optional(),

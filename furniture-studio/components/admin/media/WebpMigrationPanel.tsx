@@ -119,7 +119,7 @@ export function WebpMigrationPanel() {
         )}
       </div>
 
-      {scanError && <p role="alert" className="mt-4 border border-red-300/20 bg-red-300/5 px-3 py-2 text-xs text-red-200">{scanError}</p>}
+      {scanError && <p role="alert" className="mt-4 border border-danger/20 bg-danger/5 px-3 py-2 text-xs text-danger">{scanError}</p>}
 
       {items && items.length === 0 && !scanError && (
         <p className="mt-4 text-xs text-ink/55">Всё уже в WebP — переносить нечего.</p>
@@ -131,14 +131,14 @@ export function WebpMigrationPanel() {
             <li key={`${item.kind}:${item.refId}:${item.path}`} className="flex items-center justify-between gap-3 px-3 py-2.5 text-xs">
               <div className="min-w-0">
                 <p className="truncate text-ink/85">{item.label}</p>
-                {item.errorMessage && <p className="mt-0.5 text-[11px] text-red-300">{item.errorMessage}</p>}
+                {item.errorMessage && <p className="mt-0.5 text-[11px] text-danger">{item.errorMessage}</p>}
               </div>
               <span
                 className={
                   item.status === 'done'
                     ? 'shrink-0 text-[10px] uppercase tracking-[0.1em] text-emerald-400/90'
                     : item.status === 'error'
-                    ? 'shrink-0 text-[10px] uppercase tracking-[0.1em] text-red-300'
+                    ? 'shrink-0 text-[10px] uppercase tracking-[0.1em] text-danger'
                     : item.status === 'converting'
                     ? 'shrink-0 text-[10px] uppercase tracking-[0.1em] text-ink/60'
                     : 'shrink-0 text-[10px] uppercase tracking-[0.1em] text-ink/35'

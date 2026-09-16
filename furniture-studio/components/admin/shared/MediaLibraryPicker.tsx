@@ -85,7 +85,7 @@ export function MediaLibraryPicker({ bucket, onSelect, onClose }: MediaLibraryPi
         </div>
 
         <div className="flex-1 overflow-y-auto p-5">
-          {error && <p className="text-sm text-red-300">{error}</p>}
+          {error && <p className="text-sm text-danger">{error}</p>}
           {!error && assets === null && <p className="py-10 text-center text-sm text-ink/40">Загружаем…</p>}
           {!error && assets !== null && filtered.length === 0 && <p className="py-10 text-center text-sm text-ink/40">Ничего не найдено.</p>}
 
@@ -119,14 +119,14 @@ export function MediaLibraryPicker({ bucket, onSelect, onClose }: MediaLibraryPi
             </p>
             {checkingUsage && <p className="mt-4 text-xs text-ink/40">Проверяем, используется ли файл на сайте…</p>}
             {usageMessage && <p role="alert" className="mt-4 border border-amber-300/25 bg-amber-300/5 px-3 py-2 text-xs leading-5 text-amber-100">{usageMessage}</p>}
-            {deleteError && <p role="alert" className="mt-4 border border-red-300/20 bg-red-300/5 px-3 py-2 text-xs leading-5 text-red-200">{deleteError}</p>}
+            {deleteError && <p role="alert" className="mt-4 border border-danger/20 bg-danger/5 px-3 py-2 text-xs leading-5 text-danger">{deleteError}</p>}
             <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <button type="button" onClick={() => setConfirmTarget(null)} disabled={isPending} className="min-h-11 border border-ink/10 px-4 py-3 text-xs uppercase tracking-[0.12em] text-ink/55 hover:text-ink disabled:opacity-40">Отмена</button>
               <button
                 type="button"
                 onClick={confirmDelete}
                 disabled={isPending || checkingUsage || !!usageMessage}
-                className="min-h-11 border border-red-300/20 bg-red-300/10 px-4 py-3 text-xs uppercase tracking-[0.12em] text-red-100 hover:bg-red-300/15 disabled:opacity-40"
+                className="min-h-11 border border-danger/20 bg-danger/10 px-4 py-3 text-xs uppercase tracking-[0.12em] text-danger hover:bg-danger/15 disabled:opacity-40"
               >
                 {isPending ? 'Удаление…' : 'Удалить навсегда'}
               </button>
