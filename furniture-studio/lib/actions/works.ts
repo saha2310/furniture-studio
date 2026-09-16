@@ -312,6 +312,40 @@ async function syncWorkImages(
   return { success: true, message: 'Фотографии сохранены' };
 }
 
+
+export async function updateWorkImageCatalogSettings(
+  imageId: string,
+  settings: { catalog_position_x: number; catalog_position_y: number; catalog_zoom: number; catalog_flip_horizontal: boolean },
+): Promise<ActionResult> {
+  try {
+    await requireUser();
+  } catch (e) {
+    if (isUnauthorizedError(e)) return { success: false, message: 'Требуется авторизация.' };
+    throw e;
+  }
+
+  const supabase = await createClient();
+  const positionX = Number(settings.catalog_position_x);
+  const positionY = Number(settings.catalog_position_y);
+  const zoom = Number(settings.catalog_zoom);
+  if (![positionX, positionY, zoom].every(Number.isFinite)) {
+    return { success: false, message: 'Некорректные настройки изображения.' };
+  }
+  const values = {
+    catalog_position_x: Math.max(0, Math.min(100, positionX)),
+    catalog_position_y: Math.max(0, Math.min(100, positionY)),
+    catalog_zoom: Math.max(1, Math.min(4, zoom)),
+    catalog_flip_horizontal: Boolean(settings.catalog_flip_horizontal),
+  };
+  const { data, error } = await supabase.from('work_images').update(values).eq('id', imageId).select('work_id').maybeSingle();
+  if (error || !data) return { success: false, message: 'Не удалось сохранить настройки изображения карточки.' };
+
+  revalidatePath('/works');
+  revalidatePath('/admin/works');
+  revalidatePath(`/admin/works/${data.work_id}`);
+  return { success: true, message: 'Настройки изображения карточки сохранены.' };
+}
+
 export async function createWork(_prev: ActionResult | null, formData: FormData): Promise<ActionResult> {
   try {
     await requireUser();

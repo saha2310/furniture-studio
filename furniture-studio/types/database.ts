@@ -79,6 +79,10 @@ export interface Database {
           work_id: string;
           storage_path: string;
           original_path: string | null;
+          catalog_position_x: number;
+          catalog_position_y: number;
+          catalog_zoom: number;
+          catalog_flip_horizontal: boolean;
           alt_text: string | null;
           sort_order: number;
           created_at: string;
@@ -88,6 +92,10 @@ export interface Database {
           work_id: string;
           storage_path: string;
           original_path?: string | null;
+          catalog_position_x?: number;
+          catalog_position_y?: number;
+          catalog_zoom?: number;
+          catalog_flip_horizontal?: boolean;
           alt_text?: string | null;
           sort_order?: number;
           created_at?: string;

@@ -113,7 +113,12 @@ function StatusPill({ published }: { published: boolean }) {
 // VariantBar, как было со старым absolute-дропдауном. Паттерн модалки —
 // как в MediaLibraryPicker (Escape/клик по фону закрывает, блокировка
 // прокрутки body), для визуальной и поведенческой консистентности админки.
-function AttachExistingModal({ groupId, candidates, categories, onClose }: { groupId: string; candidates: WorkWithUrls[]; categories: Category[]; onClose: () => void }) {
+function categoryIdsOverlap(left: string[], right: string[]) {
+  const set = new Set(left);
+  return right.some((id) => set.has(id));
+}
+
+function AttachExistingModal({ groupId, candidates, categories, currentCategoryIds, onClose }: { groupId: string; candidates: WorkWithUrls[]; categories: Category[]; currentCategoryIds: string[]; onClose: () => void }) {
   const router = useRouter();
   const [query, setQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -165,7 +170,7 @@ function AttachExistingModal({ groupId, candidates, categories, onClose }: { gro
         <div className="flex items-center justify-between gap-4 border-b border-ink/10 p-5">
           <div>
             <h2 id={titleId} className="text-lg text-ink">Привязать существующий товар</h2>
-            <p className="mt-1 text-xs leading-5 text-ink/40">Показаны все самостоятельные товары. Фильтры помогают быстро найти нужный, а при привязке сервер дополнительно проверит совместимость категорий.</p>
+            <p className="mt-1 text-xs leading-5 text-ink/40">Показаны все работы. Фильтры помогают найти нужную, а статус рядом объясняет, можно ли привязать её к текущей группе.</p>
           </div>
           <button type="button" onClick={onClose} disabled={!!pendingId} className="shrink-0 text-2xl leading-none text-ink/50 hover:text-ink disabled:opacity-40" aria-label="Закрыть">×</button>
         </div>
@@ -185,20 +190,26 @@ function AttachExistingModal({ groupId, candidates, categories, onClose }: { gro
         <div className="flex-1 overflow-y-auto p-2">
           {filtered.length === 0 ? (
             <p className="px-3 py-10 text-center text-sm text-ink/40">
-              {candidates.length === 0 ? 'Нет самостоятельных товаров для привязки.' : 'Ничего не найдено. Попробуйте другой запрос или снимите фильтр категории.'}
+              {candidates.length === 0 ? 'Нет работ для поиска.' : 'Ничего не найдено. Попробуйте другой запрос или снимите фильтр категории.'}
             </p>
           ) : (
             <ul>
               {filtered.map((c) => {
                 const cover = c.coverImage?.url ?? c.images?.[0]?.url;
                 const isPending = pendingId === c.id;
+                const isCurrentGroup = c.group_id === groupId;
+                const isOtherGroup = !isCurrentGroup && c.group_id !== c.id;
+                const hasCategoryOverlap = categoryIdsOverlap(currentCategoryIds, [c.category_id, ...(c.extraCategoryIds ?? [])]);
+                const noCommonCategory = !isCurrentGroup && !isOtherGroup && !hasCategoryOverlap;
+                const unavailable = isCurrentGroup || isOtherGroup || noCommonCategory;
+                const status = isCurrentGroup ? 'Уже в этой группе' : isOtherGroup ? 'Уже в другой группе цветов' : noCommonCategory ? 'Нет общей категории' : null;
                 return (
                   <li key={c.id}>
                     <button
                       type="button"
-                      disabled={!!pendingId}
+                      disabled={!!pendingId || unavailable}
                       onClick={() => handleAttach(c.id)}
-                      className="flex w-full items-center gap-3 px-3 py-2 text-left transition hover:bg-ink/5 disabled:opacity-50 disabled:hover:bg-transparent"
+                      className="flex w-full items-center gap-3 px-3 py-2 text-left transition hover:bg-ink/5 disabled:opacity-60 disabled:hover:bg-transparent"
                     >
                       <span className="relative h-11 w-11 shrink-0 overflow-hidden border border-ink/10 bg-canvas">
                         {cover ? (
@@ -215,6 +226,7 @@ function AttachExistingModal({ groupId, candidates, categories, onClose }: { gro
                         </span>
                       </span>
                       {isPending && <span className="shrink-0 text-[10px] text-ink/40">Привязываем…</span>}
+                      {!isPending && status && <span className="max-w-[150px] shrink-0 text-right text-[9px] uppercase tracking-[0.08em] text-ink/35">{status}</span>}
                     </button>
                   </li>
                 );
@@ -235,7 +247,7 @@ function AttachExistingModal({ groupId, candidates, categories, onClose }: { gro
 // Список кандидатов открывается полноэкранной модалкой (AttachExistingModal)
 // поверх всей страницы, а не выпадашкой рядом с кнопкой — раньше дропдаун
 // был вложен в горизонтально скроллящийся VariantBar и обрезался им.
-function AttachExistingPicker({ groupId, candidates, categories }: { groupId: string; candidates: WorkWithUrls[]; categories: Category[] }) {
+function AttachExistingPicker({ groupId, candidates, categories, currentCategoryIds }: { groupId: string; candidates: WorkWithUrls[]; categories: Category[]; currentCategoryIds: string[] }) {
   const [open, setOpen] = useState(false);
 
   if (candidates.length === 0) return null;
@@ -243,7 +255,7 @@ function AttachExistingPicker({ groupId, candidates, categories }: { groupId: st
   return (
     <>
       <AddSquareButton label="Товар" title="Привязать существующий товар как цвет" onClick={() => setOpen(true)} />
-      {open && <AttachExistingModal groupId={groupId} candidates={candidates} categories={categories} onClose={() => setOpen(false)} />}
+      {open && <AttachExistingModal groupId={groupId} candidates={candidates} categories={categories} currentCategoryIds={currentCategoryIds} onClose={() => setOpen(false)} />}
     </>
   );
 }
@@ -362,7 +374,7 @@ function VariantBar({
       </div>
       <div className="flex shrink-0 items-center gap-2 border-l border-ink/10 pl-3">
         <AddSquareButton label="Цвет" title="Добавить новый цвет этого товара" href={addHref} />
-        {groupId && <AttachExistingPicker groupId={groupId} candidates={attachCandidates} categories={categories} />}
+        {groupId && <AttachExistingPicker groupId={groupId} candidates={attachCandidates} categories={categories} currentCategoryIds={[categoryId ?? '', ...extraCategoryIds].filter(Boolean)} />}
       </div>
     </div>
   );

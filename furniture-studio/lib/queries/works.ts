@@ -348,9 +348,9 @@ export async function getWorkGroupVariantsAdmin(groupId: string, excludeId?: str
   return (data ?? []).map(attachUrls);
 }
 
-// Для «+ Существующий товар»: показываем все самостоятельные карточки.
+// Для «+ Существующий товар»: показываем все работы.
 // Клиентский пикер фильтрует по названию, цвету и категориям, а финальная
-// проверка пересечения категорий остаётся в attachWorkToGroup.
+// проверка допустимости привязки остаётся в attachWorkToGroup.
 export async function getStandaloneWorksAdmin(workId: string): Promise<WorkWithUrls[]> {
   await requireUser();
   const supabase = await createClient();
@@ -368,7 +368,7 @@ export async function getStandaloneWorksAdmin(workId: string): Promise<WorkWithU
     return [];
   }
 
-  const works = (data ?? []).map(attachUrls).filter((work) => work.group_id === work.id);
+  const works = (data ?? []).map(attachUrls);
   if (works.length === 0) return [];
 
   const { data: extraRows } = await supabase

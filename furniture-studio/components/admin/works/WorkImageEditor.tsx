@@ -8,6 +8,7 @@ import { ACCEPTED_IMAGE_TYPES, MAX_IMAGE_SIZE_BYTES, workImageUrl } from '@/lib/
 import { convertToWebp } from '@/lib/utils/image-client';
 import { createBrowserSupabaseClient } from '@/lib/supabase/browser';
 import { ImageCropDialog } from '@/components/admin/shared/ImageCropDialog';
+import { CatalogImageSettingsDialog } from '@/components/admin/shared/CatalogImageSettingsDialog';
 import { MediaLibraryPicker } from '@/components/admin/shared/MediaLibraryPicker';
 import { copyMediaAssetToWork } from '@/lib/actions/media';
 
@@ -64,6 +65,7 @@ export function WorkImageEditor({
   const [deleted, setDeleted] = useState<string[]>([]);
   const [selectedCover, setSelectedCover] = useState<string | null>(coverImageId);
   const [editor, setEditor] = useState<{ kind: 'existing' | 'new'; id: string; sourceUrl: string } | null>(null);
+  const [catalogEditor, setCatalogEditor] = useState<WorkImageWithUrl | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
 
@@ -274,9 +276,10 @@ export function WorkImageEditor({
                   </button>
                 )}
               </div>
-              <div className="grid grid-cols-3 gap-px bg-ink/10">
+              <div className="grid grid-cols-4 gap-px bg-ink/10">
                 <button type="button" onClick={() => setSelectedCover(image.id)} className="bg-surface px-2 py-3 text-[9px] uppercase tracking-[0.11em] text-ink/70 hover:text-ink">Обложка</button>
                 <button type="button" onClick={() => startExistingEdit(image)} className="bg-surface px-2 py-3 text-[9px] uppercase tracking-[0.11em] text-ink/70 hover:text-ink">Правка</button>
+                <button type="button" onClick={() => setCatalogEditor(image)} className="bg-surface px-2 py-3 text-[9px] uppercase tracking-[0.11em] text-ink/70 hover:text-ink">Карточка</button>
                 <button type="button" onClick={() => removeExisting(image.id)} className="bg-surface px-2 py-3 text-[9px] uppercase tracking-[0.11em] text-red-200/80 hover:text-red-100">Удалить</button>
               </div>
             </div>
@@ -327,6 +330,7 @@ export function WorkImageEditor({
       ))}
       <input type="hidden" name="cover_image_id" value={selectedCover ?? ''} />
 
+      {catalogEditor && <CatalogImageSettingsDialog image={catalogEditor} onClose={() => setCatalogEditor(null)} onSaved={() => { setCatalogEditor(null); router.refresh(); }} />}
       {editor && <ImageCropDialog sourceUrl={editor.sourceUrl} initialRatio={4 / 3} onCancel={() => setEditor(null)} onApply={applyEdit} title="Редактирование фотографии" />}
     </section>
   );
