@@ -117,7 +117,7 @@ export function SingleImageField({
       </div>
 
       <div className={`mt-4 overflow-hidden border border-ink/10 bg-black ${compact ? 'aspect-[4/3] max-w-sm' : 'aspect-[4/3]'}`}>
-        {currentUrl ? <img src={currentUrl} alt="Предпросмотр" className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-xs text-ink/35">Изображение не выбрано</div>}
+        {currentUrl ? <img src={currentUrl} alt="Предпросмотр" className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-xs text-white/35">Изображение не выбрано</div>}
       </div>
 
       {converting && <p className="mt-3 text-[11px] leading-5 text-ink/70">Оптимизируем изображение…</p>}

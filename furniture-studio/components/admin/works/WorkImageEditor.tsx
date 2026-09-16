@@ -240,10 +240,10 @@ export function WorkImageEditor({
             <div key={image.id} className="bg-canvas">
               <div className="relative aspect-[4/3] overflow-hidden">
                 <Image src={replacement?.url ?? image.url} alt={image.alt_text ?? ''} fill sizes="(min-width:1280px) 30vw, (min-width:640px) 50vw, 100vw" className="object-cover" />
-                {selectedCover === image.id && <span className="absolute left-2 top-2 border border-ink/20 bg-black/75 px-2 py-1 text-[9px] uppercase tracking-[0.12em] text-ink">Обложка</span>}
-                <span className="absolute right-2 top-2 bg-black/65 px-2 py-1 text-[9px] text-ink/75">{String(index + 1).padStart(2, '0')}</span>
+                {selectedCover === image.id && <span className="absolute left-2 top-2 border border-white/20 bg-black/75 px-2 py-1 text-[9px] uppercase tracking-[0.12em] text-white">Обложка</span>}
+                <span className="absolute right-2 top-2 bg-black/65 px-2 py-1 text-[9px] text-white/75">{String(index + 1).padStart(2, '0')}</span>
                 {replacement?.status === 'uploading' && (
-                  <span className="absolute inset-0 flex items-center justify-center bg-black/60 text-[9px] uppercase tracking-[0.12em] text-canvas">Загружаем замену…</span>
+                  <span className="absolute inset-0 flex items-center justify-center bg-black/60 text-[9px] uppercase tracking-[0.12em] text-white">Загружаем замену…</span>
                 )}
                 {replacement?.status === 'error' && (
                   <button type="button" onClick={() => retryReplacementUpload(image.id)} className="absolute inset-0 flex items-center justify-center bg-red-950/75 text-center text-[9px] uppercase tracking-[0.12em] text-red-100">
@@ -253,7 +253,7 @@ export function WorkImageEditor({
               </div>
               <div className="grid grid-cols-3 gap-px bg-ink/10">
                 <button type="button" onClick={() => setSelectedCover(image.id)} className="bg-surface px-2 py-3 text-[9px] uppercase tracking-[0.11em] text-ink/70 hover:text-ink">Обложка</button>
-                <button type="button" onClick={() => startExistingEdit(image)} className="bg-surface px-2 py-3 text-[9px] uppercase tracking-[0.11em] text-ink/70 hover:text-ink">Редактировать</button>
+                <button type="button" onClick={() => startExistingEdit(image)} className="bg-surface px-2 py-3 text-[9px] uppercase tracking-[0.11em] text-ink/70 hover:text-ink">Правка</button>
                 <button type="button" onClick={() => removeExisting(image.id)} className="bg-surface px-2 py-3 text-[9px] uppercase tracking-[0.11em] text-red-200/80 hover:text-red-100">Удалить</button>
               </div>
             </div>
@@ -264,9 +264,9 @@ export function WorkImageEditor({
           <div key={image.id} className="border border-dashed border-ink/20 bg-canvas">
             <div className="relative aspect-[4/3] overflow-hidden">
               <img src={image.url} alt="Новое изображение" className="h-full w-full object-cover" />
-              {selectedCover === image.id && <span className="absolute left-2 top-2 border border-ink/20 bg-black/75 px-2 py-1 text-[9px] uppercase tracking-[0.12em] text-ink">Обложка</span>}
+              {selectedCover === image.id && <span className="absolute left-2 top-2 border border-white/20 bg-black/75 px-2 py-1 text-[9px] uppercase tracking-[0.12em] text-white">Обложка</span>}
               {image.status === 'uploading' && (
-                <span className="absolute inset-0 flex items-center justify-center bg-black/60 text-[9px] uppercase tracking-[0.12em] text-canvas">Загружаем…</span>
+                <span className="absolute inset-0 flex items-center justify-center bg-black/60 text-[9px] uppercase tracking-[0.12em] text-white">Загружаем…</span>
               )}
               {image.status === 'error' && (
                 <button type="button" onClick={() => retryNewUpload(image.id)} className="absolute inset-0 flex items-center justify-center bg-red-950/75 text-center text-[9px] uppercase tracking-[0.12em] text-red-100">
@@ -276,7 +276,7 @@ export function WorkImageEditor({
             </div>
             <div className="grid grid-cols-3 gap-px bg-ink/10">
               <button type="button" onClick={() => setSelectedCover(image.id)} className="bg-surface px-2 py-3 text-[9px] uppercase tracking-[0.11em] text-ink/70 hover:text-ink">Обложка</button>
-              <button type="button" onClick={() => startNewEdit(image)} className="bg-surface px-2 py-3 text-[9px] uppercase tracking-[0.11em] text-ink/70 hover:text-ink">Редактировать</button>
+              <button type="button" onClick={() => startNewEdit(image)} className="bg-surface px-2 py-3 text-[9px] uppercase tracking-[0.11em] text-ink/70 hover:text-ink">Правка</button>
               <button type="button" onClick={() => removeNew(image.id)} className="bg-surface px-2 py-3 text-[9px] uppercase tracking-[0.11em] text-red-200/80 hover:text-red-100">Удалить</button>
             </div>
           </div>

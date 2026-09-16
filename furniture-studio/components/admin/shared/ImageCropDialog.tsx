@@ -231,7 +231,7 @@ export function ImageCropDialog({ sourceUrl, title = 'Редактор изоб�
             onPointerCancel={onPointerUp}
             onWheel={onWheel}
           >
-            {!image && <div className="flex h-full min-h-[360px] items-center justify-center text-sm text-ink/55">Загружаем изображение…</div>}
+            {!image && <div className="flex h-full min-h-[360px] items-center justify-center text-sm text-white/55">Загружаем изображение…</div>}
             {image && rendered && (
               <>
                 <img
@@ -247,7 +247,7 @@ export function ImageCropDialog({ sourceUrl, title = 'Редактор изоб�
                 />
                 <div className="pointer-events-none absolute inset-0 bg-black/55" />
                 <div
-                  className="pointer-events-none absolute left-1/2 top-1/2 border border-ink/90 shadow-[0_0_0_9999px_rgba(0,0,0,.25)]"
+                  className="pointer-events-none absolute left-1/2 top-1/2 border border-white/90 shadow-[0_0_0_9999px_rgba(0,0,0,.25)]"
                   style={{ width: cropFrame.width, height: cropFrame.height, transform: 'translate(-50%, -50%)' }}
                 />
               </>
