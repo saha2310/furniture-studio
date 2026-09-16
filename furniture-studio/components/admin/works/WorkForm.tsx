@@ -268,6 +268,7 @@ function VariantBar({
   siblings,
   groupId,
   categoryId,
+  extraCategoryIds = [],
   attachCandidates = [],
   categories = [],
 }: {
@@ -278,6 +279,7 @@ function VariantBar({
   siblings: WorkWithUrls[];
   groupId?: string;
   categoryId?: string;
+  extraCategoryIds?: string[];
   attachCandidates?: WorkWithUrls[];
   categories?: Category[];
 }) {
@@ -498,7 +500,7 @@ export function WorkForm({ categories, initialData, action, submitLabel, redirec
         </div>
       </div>
 
-      <VariantBar categories={categories} currentId={initialData?.id} currentTitle={title} currentColorName={colorName} currentColorHex={colorHex} siblings={colorVariants} groupId={effectiveGroupId} categoryId={categoryId} attachCandidates={attachCandidates} />
+      <VariantBar categories={categories} currentId={initialData?.id} currentTitle={title} currentColorName={colorName} currentColorHex={colorHex} siblings={colorVariants} groupId={effectiveGroupId} categoryId={categoryId} extraCategoryIds={extraCategoryIds} attachCandidates={attachCandidates} />
 
       <div className="mt-5 space-y-8">
         <section>
