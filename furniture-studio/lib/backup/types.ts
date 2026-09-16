@@ -18,6 +18,7 @@ const workImageBackupSchema = z.object({
   id: z.string(),
   work_id: z.string(),
   storage_path: z.string(),
+  original_path: z.string().nullable().optional(),
   alt_text: z.string().nullable(),
   sort_order: z.number(),
 });

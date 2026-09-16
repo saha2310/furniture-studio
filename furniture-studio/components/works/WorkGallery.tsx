@@ -57,7 +57,7 @@ export function WorkGallery({ images, title }: { images: WorkImageWithUrl[]; tit
     const previous = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = previous; };
-  }, [lightbox]);
+  }, [lightbox, activeIndex, images.length]);
 
   useEffect(() => {
     // Переключение на следующее/предыдущее фото внутри лайтбокса тоже
