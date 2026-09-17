@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { WorkImageWithUrl } from '@/types/domain';
+import { useBodyScrollLock } from '@/lib/hooks/useBodyScrollLock';
+import { usePinchZoom } from '@/lib/hooks/usePinchZoom';
 
 type Props = {
   image: WorkImageWithUrl;
@@ -12,11 +14,13 @@ type Props = {
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
 export function CatalogImageSettingsDialog({ image, onClose, onSaved }: Props) {
+  useBodyScrollLock();
   const frameRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null);
   const [positionX, setPositionX] = useState(image.catalog_position_x ?? 50);
   const [positionY, setPositionY] = useState(image.catalog_position_y ?? 50);
   const [zoom, setZoom] = useState(image.catalog_zoom ?? 1);
+  const pinchZoom = usePinchZoom({ zoom, setZoom });
   const [flipped, setFlipped] = useState(image.catalog_flip_horizontal ?? false);
 
   useEffect(() => {
@@ -29,10 +33,15 @@ export function CatalogImageSettingsDialog({ image, onClose, onSaved }: Props) {
     const frame = frameRef.current;
     if (!frame) return;
     event.currentTarget.setPointerCapture(event.pointerId);
+    // До этой правки тут был только drag для позиции — второй палец (pinch)
+    // никак не обрабатывался и просто утекал наружу, двигая страницу под
+    // диалогом (см. useBodyScrollLock и usePinchZoom).
+    if (pinchZoom.onPointerDown(event)) { dragRef.current = null; return; }
     dragRef.current = { x: event.clientX, y: event.clientY, ox: positionX, oy: positionY };
   }
 
   function onPointerMove(event: React.PointerEvent) {
+    if (pinchZoom.onPointerMove(event)) return;
     const drag = dragRef.current;
     const frame = frameRef.current;
     if (!drag || !frame) return;
@@ -40,7 +49,10 @@ export function CatalogImageSettingsDialog({ image, onClose, onSaved }: Props) {
     setPositionY(clamp(drag.oy - ((event.clientY - drag.y) / frame.clientHeight) * 100, 0, 100));
   }
 
-  function stopDrag() { dragRef.current = null; }
+  function stopDrag(event: React.PointerEvent) {
+    pinchZoom.onPointerUp(event);
+    dragRef.current = null;
+  }
 
   // Ничего не пишет на сервер: только передаёт выбранные значения наверх, в
   // WorkImageEditor, который держит их как несохранённые и отправляет вместе
@@ -79,6 +91,7 @@ export function CatalogImageSettingsDialog({ image, onClose, onSaved }: Props) {
             onPointerMove={onPointerMove}
             onPointerUp={stopDrag}
             onPointerCancel={stopDrag}
+            onWheel={pinchZoom.onWheel}
           >
             <img
               src={image.url}
@@ -88,7 +101,7 @@ export function CatalogImageSettingsDialog({ image, onClose, onSaved }: Props) {
               style={{ objectPosition: `${positionX}% ${positionY}%`, transform: `scale(${zoom}) scaleX(${flipped ? -1 : 1})` }}
             />
             <div className="pointer-events-none absolute inset-0 border border-white/20" />
-            <span className="pointer-events-none absolute bottom-3 left-3 bg-black/60 px-2 py-1 text-[9px] uppercase tracking-[0.12em] text-white/75">Перетащите фото</span>
+            <span className="pointer-events-none absolute bottom-3 left-3 bg-black/60 px-2 py-1 text-[9px] uppercase tracking-[0.12em] text-white/75">Перетащите фото · сведите пальцы, чтобы приблизить</span>
           </div>
 
           <div className="space-y-5">

@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useState, useTransition } from 'react';
 import { listMediaAssets, deleteMediaAsset, getMediaAssetUsage, type MediaAsset } from '@/lib/actions/media';
+import { useBodyScrollLock } from '@/lib/hooks/useBodyScrollLock';
 
 interface MediaLibraryPickerProps {
   /** Ограничить показ одним бакетом (например, только 'site' для логотипа). Без значения — оба. */
@@ -11,6 +12,11 @@ interface MediaLibraryPickerProps {
 }
 
 export function MediaLibraryPicker({ bucket, onSelect, onClose }: MediaLibraryPickerProps) {
+  // Раньше здесь был только document.body.style.overflow = 'hidden' — этого
+  // хватает на десктопе, но не держит touch/bounce-скролл на iOS Safari.
+  // useBodyScrollLock — тот же приём с position:fixed, что и в
+  // ImageCropDialog/CatalogImageSettingsDialog.
+  useBodyScrollLock();
   const [assets, setAssets] = useState<MediaAsset[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
@@ -33,10 +39,8 @@ export function MediaLibraryPicker({ bucket, onSelect, onClose }: MediaLibraryPi
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose(); };
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
     document.addEventListener('keydown', onKeyDown);
-    return () => { document.body.style.overflow = previous; document.removeEventListener('keydown', onKeyDown); };
+    return () => document.removeEventListener('keydown', onKeyDown);
   }, [onClose]);
 
   const filtered = (assets ?? [])

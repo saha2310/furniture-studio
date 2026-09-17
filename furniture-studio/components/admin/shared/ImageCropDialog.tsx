@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { WEBP_QUALITY } from '@/lib/utils/image';
+import { useBodyScrollLock } from '@/lib/hooks/useBodyScrollLock';
+import { usePinchZoom } from '@/lib/hooks/usePinchZoom';
 
 export const IMAGE_RATIOS = [
   { label: 'Свободный', value: null },
@@ -21,13 +23,13 @@ type Props = {
 };
 
 export function ImageCropDialog({ sourceUrl, title = 'Редактор изображения', initialRatio = 4 / 3, onCancel, onApply }: Props) {
+  useBodyScrollLock();
   const frameRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null);
-  const pointersRef = useRef(new Map<number, { x: number; y: number }>());
-  const pinchRef = useRef<{ distance: number; zoom: number } | null>(null);
   const [image, setImage] = useState<{ url: string; width: number; height: number } | null>(null);
   const [ratio, setRatio] = useState<number | null>(initialRatio);
   const [zoom, setZoom] = useState(1);
+  const pinchZoom = usePinchZoom({ zoom, setZoom });
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [flipped, setFlipped] = useState(false);
   const [frame, setFrame] = useState({ width: 680, height: 520 });
@@ -124,50 +126,26 @@ export function ImageCropDialog({ sourceUrl, title = 'Редактор изоб�
     };
   }
 
-  function pointerDistance() {
-    const values = Array.from(pointersRef.current.values());
-    if (values.length < 2) return null;
-    return Math.hypot(values[0].x - values[1].x, values[0].y - values[1].y);
-  }
-
   function onPointerDown(e: React.PointerEvent) {
     if (!rendered) return;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (pointersRef.current.size >= 2) {
-      const distance = pointerDistance();
-      if (distance) pinchRef.current = { distance, zoom };
-      dragRef.current = null;
-      return;
-    }
+    if (pinchZoom.onPointerDown(e)) { dragRef.current = null; return; }
     dragRef.current = { x: e.clientX, y: e.clientY, ox: offset.x, oy: offset.y };
   }
 
   function onPointerMove(e: React.PointerEvent) {
-    if (pointersRef.current.has(e.pointerId)) pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    const distance = pointerDistance();
-    if (distance && pinchRef.current) {
-      const nextZoom = Math.min(4, Math.max(1, pinchRef.current.zoom * (distance / pinchRef.current.distance)));
-      setZoom(Number(nextZoom.toFixed(2)));
-      return;
-    }
+    if (pinchZoom.onPointerMove(e)) return;
     const drag = dragRef.current;
     if (!drag) return;
     setOffset(clampOffset({ x: drag.ox + e.clientX - drag.x, y: drag.oy + e.clientY - drag.y }));
   }
 
   function onPointerUp(e: React.PointerEvent) {
-    pointersRef.current.delete(e.pointerId);
-    pinchRef.current = null;
+    pinchZoom.onPointerUp(e);
     dragRef.current = null;
   }
 
-  function onWheel(e: React.WheelEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-    const delta = e.deltaY > 0 ? -0.05 : 0.05;
-    setZoom((value) => Math.min(4, Math.max(1, Number((value + delta).toFixed(2)))));
-  }
+  const onWheel = pinchZoom.onWheel;
 
   async function apply() {
     if (!image || !rendered) return;
