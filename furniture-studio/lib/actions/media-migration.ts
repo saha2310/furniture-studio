@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requireUser, isUnauthorizedError } from './auth-guard';
 import { workImageUrl, siteAssetUrl } from '@/lib/utils/image';
+import { getMediaAssetUsage } from './media';
 
 /**
  * Одноразовая миграция уже загруженных PNG/JPEG/GIF/AVIF в WebP.
@@ -204,8 +205,18 @@ export async function applyWebpMigration(
     if (error) { await rollbackNewFile(); return { success: false, message: 'Не удалось сохранить карусель контактов.' }; }
   }
 
-  const { error: removeError } = await supabase.storage.from(bucket).remove([oldPath]);
-  if (removeError) console.error('applyWebpMigration: failed to remove old file', removeError.message);
+  // Эта функция переключает на newPath только ОДНУ конкретную ссылку
+  // (kind+refId, обновлено выше). Если oldPath — тот же файл, что "одолжен"
+  // ещё где-то (см. комментарий у removeUnusedStoragePaths в
+  // lib/actions/works.ts), безусловное удаление сломало бы ту, другую
+  // ссылку, которую эта миграция не трогала. К этому моменту ссылка,
+  // которую мы обновляем, уже указывает на newPath, так что проверка
+  // корректно увидит только СТОРОННИЕ упоминания oldPath.
+  const usage = await getMediaAssetUsage(bucket, oldPath);
+  if (!usage.used) {
+    const { error: removeError } = await supabase.storage.from(bucket).remove([oldPath]);
+    if (removeError) console.error('applyWebpMigration: failed to remove old file', removeError.message);
+  }
 
   revalidatePath('/', 'layout');
   return { success: true, message: 'Переведено в WebP' };

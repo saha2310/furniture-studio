@@ -6,6 +6,7 @@ import { requireUser, isUnauthorizedError } from './auth-guard';
 import { workSchema } from '@/lib/validations/work.schema';
 import { slugify } from '@/lib/utils/slug';
 import { actionError } from '@/lib/utils/action-error';
+import { getMediaAssetUsage } from './media';
 
 export interface ActionResult {
   success: boolean;
@@ -205,6 +206,31 @@ async function syncWorkImages(
   // Удаление, замена уже существующих фото и привязка новых не зависят друг
   // от друга (разные id, разные storage-пути), поэтому выполняются
   // параллельно, а не одной длинной очередью.
+  // Медиатека (кнопка «Открыть галерею» / «Добавить из галереи» в
+  // настройках, категориях, разделах главной) не копирует выбранный файл —
+  // она просто ссылается на тот же путь в Storage. Это значит, что фото
+  // работы, физически лежащее в бакете 'works', может быть одновременно
+  // обложкой категории, логотипом сайта или картинкой в секции главной.
+  // Раньше при удалении/замене фото прямо здесь файл в Storage сносился
+  // безусловно — если он был "одолжен" в другое место, то место молча
+  // ломалось (картинка переставала грузиться) в момент, когда никто не
+  // ожидал такого побочного эффекта, ведь удаляли-то совсем другую сущность
+  // (фото работы). getMediaAssetUsage — та же проверка, что уже стоит перед
+  // удалением файла из самой медиатеки — теперь используется и здесь.
+  async function removeUnusedStoragePaths(paths: string[]) {
+    const uniquePaths = Array.from(new Set(paths.filter(Boolean)));
+    if (!uniquePaths.length) return;
+    const removable: string[] = [];
+    for (const path of uniquePaths) {
+      const usage = await getMediaAssetUsage('works', path);
+      if (!usage.used) removable.push(path);
+    }
+    if (removable.length) {
+      const { error } = await supabase.storage.from('works').remove(removable);
+      if (error) console.error('syncWorkImages: storage remove failed', error.message);
+    }
+  }
+
   async function runDeletions(): Promise<{ success: boolean; message?: string }> {
     if (!deleteIds.length) return { success: true };
     const { data: doomed, error } = await supabase
@@ -218,11 +244,14 @@ async function syncWorkImages(
     // Сначала удаляем строки в БД — это то, что делает изображение
     // действительно отвязанным от товара; файл в Storage подчищаем следом
     // (если это не получится — фото уже не привязано к товару, просто
-    // останется "осиротевший" файл, не повреждённые данные).
+    // останется "осиротевший" файл, не повреждённые данные). К моменту этой
+    // проверки строки work_images для этого фото уже удалены, так что
+    // getMediaAssetUsage внутри removeUnusedStoragePaths корректно увидит
+    // только СТОРОННИЕ ссылки на этот путь (категория, логотип, секция
+    // главной), а не удаляемую только что запись.
     const { error: deleteError } = await supabase.from('work_images').delete().in('id', doomedIds);
     if (deleteError) return { success: false, message: actionError('Не удалось удалить выбранные фотографии.', deleteError) };
-    const { error: storageError } = await supabase.storage.from('works').remove(doomed.flatMap((item) => [item.storage_path, (item as { original_path?: string | null }).original_path].filter(Boolean) as string[]));
-    if (storageError) console.error('syncWorkImages: storage remove failed', storageError.message);
+    await removeUnusedStoragePaths(doomed.flatMap((item) => [item.storage_path, (item as { original_path?: string | null }).original_path].filter(Boolean) as string[]));
     return { success: true };
   }
 
@@ -247,8 +276,8 @@ async function syncWorkImages(
           await supabase.storage.from('works').remove([path]);
           return { success: false as const, message: actionError('Не удалось сохранить изменённую фотографию.', updateError) };
         }
-        if (old.storage_path && old.storage_path !== path) await supabase.storage.from('works').remove([old.storage_path]);
-        if (old.original_path && old.original_path !== originalPath && old.original_path !== old.storage_path) await supabase.storage.from('works').remove([old.original_path]);
+        if (old.storage_path && old.storage_path !== path) await removeUnusedStoragePaths([old.storage_path]);
+        if (old.original_path && old.original_path !== originalPath && old.original_path !== old.storage_path) await removeUnusedStoragePaths([old.original_path]);
         return { success: true as const };
       })
     );
@@ -289,10 +318,11 @@ async function syncWorkImages(
     return { success: true, idMap };
   }
 
-  const [deleteResult, replacementResult, newAttachResult] = await Promise.all([runDeletions(), runReplacements(), attachNewImages()]);
+  const [deleteResult, replacementResult, newAttachResult, catalogResult] = await Promise.all([runDeletions(), runReplacements(), attachNewImages(), runCatalogSettings(supabase, workId, formData)]);
   if (!deleteResult.success) return { success: false, message: deleteResult.message ?? 'Не удалось удалить выбранные фотографии.' };
   if (!replacementResult.success) return { success: false, message: replacementResult.message ?? 'Не удалось сохранить изменённые фотографии.' };
   if (!newAttachResult.success) return { success: false, message: newAttachResult.message ?? 'Не удалось сохранить новые фотографии.' };
+  if (!catalogResult.success) return { success: false, message: catalogResult.message ?? 'Не удалось сохранить настройки карточки.' };
   const newIdMap = newAttachResult.idMap;
 
   let finalCover: string | null = null;
@@ -313,52 +343,48 @@ async function syncWorkImages(
 }
 
 
-export async function updateWorkImageCatalogSettings(
-  imageId: string,
-  settings: { catalog_position_x: number; catalog_position_y: number; catalog_zoom: number; catalog_flip_horizontal: boolean },
-): Promise<ActionResult> {
-  try {
-    await requireUser();
-  } catch (e) {
-    if (isUnauthorizedError(e)) return { success: false, message: 'Требуется авторизация.' };
-    throw e;
+// Настройки положения/масштаба/зеркалирования фото для карточки каталога
+// («Карточка» в WorkImageEditor). Раньше диалог сохранял их немедленно
+// отдельным Server Action по клику на «Сохранить» внутри самого диалога —
+// в обход общей кнопки «Сохранить изменения» формы. Теперь диалог только
+// передаёт значения обратно в WorkImageEditor (см. CatalogImageSettingsDialog),
+// а сюда они приходят вместе с остальными полями формы и применяются здесь,
+// как единый пакет — параллельно с runDeletions/runReplacements/attachNewImages.
+async function runCatalogSettings(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  workId: string,
+  formData: FormData,
+): Promise<{ success: boolean; message?: string }> {
+  const ids = formData.getAll('catalog_settings_ids').map(String).filter(Boolean);
+  if (!ids.length) return { success: true };
+  const xs = formData.getAll('catalog_settings_x').map(Number);
+  const ys = formData.getAll('catalog_settings_y').map(Number);
+  const zooms = formData.getAll('catalog_settings_zoom').map(Number);
+  const flips = formData.getAll('catalog_settings_flip').map((v) => String(v) === 'true');
+  if (xs.length !== ids.length || ys.length !== ids.length || zooms.length !== ids.length || flips.length !== ids.length) {
+    return { success: false, message: 'Не удалось сопоставить настройки карточки. Обновите страницу и попробуйте снова.' };
   }
 
-  const supabase = await createClient();
-  const positionX = Number(settings.catalog_position_x);
-  const positionY = Number(settings.catalog_position_y);
-  const zoom = Number(settings.catalog_zoom);
-  if (![positionX, positionY, zoom].every(Number.isFinite)) {
-    return { success: false, message: 'Некорректные настройки изображения.' };
-  }
-  const values = {
-    catalog_position_x: Math.max(0, Math.min(100, positionX)),
-    catalog_position_y: Math.max(0, Math.min(100, positionY)),
-    catalog_zoom: Math.max(1, Math.min(4, zoom)),
-    catalog_flip_horizontal: Boolean(settings.catalog_flip_horizontal),
-  };
-  const { data: image, error: imageError } = await supabase
-    .from('work_images')
-    .select('work_id')
-    .eq('id', imageId)
-    .maybeSingle();
-  if (imageError || !image) {
-    return { success: false, message: imageError ? actionError('Не удалось найти изображение карточки.', imageError) : 'Изображение карточки не найдено.' };
-  }
-
-  const { error } = await supabase.from('work_images').update(values).eq('id', imageId);
-  if (error) {
-    const code = typeof error === 'object' && error && 'code' in error ? String((error as { code?: unknown }).code ?? '') : '';
-    if (code === 'PGRST204' || /catalog_(position_x|position_y|zoom|flip_horizontal)/i.test(error.message ?? '')) {
-      return { success: false, message: 'В базе ещё нет настроек изображения карточки. Примените миграцию supabase/migrations/0009_work_image_catalog_settings.sql в Supabase SQL Editor, затем обновите страницу.' };
+  const results = await Promise.all(ids.map(async (id, i) => {
+    if (![xs[i], ys[i], zooms[i]].every(Number.isFinite)) return { success: true as const };
+    const values = {
+      catalog_position_x: Math.max(0, Math.min(100, xs[i])),
+      catalog_position_y: Math.max(0, Math.min(100, ys[i])),
+      catalog_zoom: Math.max(1, Math.min(4, zooms[i])),
+      catalog_flip_horizontal: flips[i],
+    };
+    const { error } = await supabase.from('work_images').update(values).eq('id', id).eq('work_id', workId);
+    if (error) {
+      const code = typeof error === 'object' && error && 'code' in error ? String((error as { code?: unknown }).code ?? '') : '';
+      if (code === 'PGRST204' || /catalog_(position_x|position_y|zoom|flip_horizontal)/i.test(error.message ?? '')) {
+        return { success: false as const, message: 'В базе ещё нет настроек изображения карточки. Примените миграцию supabase/migrations/0009_work_image_catalog_settings.sql в Supabase SQL Editor, затем обновите страницу.' };
+      }
+      return { success: false as const, message: actionError('Не удалось сохранить настройки изображения карточки.', error) };
     }
-    return { success: false, message: actionError('Не удалось сохранить настройки изображения карточки.', error) };
-  }
-
-  revalidatePath('/works');
-  revalidatePath('/admin/works');
-  revalidatePath(`/admin/works/${image.work_id}`);
-  return { success: true, message: 'Настройки изображения карточки сохранены.' };
+    return { success: true as const };
+  }));
+  const failed = results.find((r) => !r.success);
+  return failed ?? { success: true };
 }
 
 export async function createWork(_prev: ActionResult | null, formData: FormData): Promise<ActionResult> {
@@ -558,11 +584,9 @@ export async function deleteWork(workId: string): Promise<ActionResult> {
 
   const { data: doomed } = await supabase.from('works').select('group_id').eq('id', workId).maybeSingle();
 
-  // Сначала удаляем файлы изображений из Storage, иначе они останутся "осиротевшими"
-  const { data: images } = await supabase.from('work_images').select('storage_path').eq('work_id', workId);
-  if (images && images.length > 0) {
-    await supabase.storage.from('works').remove(images.map((img) => img.storage_path));
-  }
+  // Запоминаем пути ДО удаления — после каскадного удаления work_images их
+  // уже не прочитать.
+  const { data: images } = await supabase.from('work_images').select('storage_path, original_path').eq('work_id', workId);
 
   // work_images удалятся каскадно (on delete cascade), cover_image_id обнулится (on delete set null)
   const { error } = await supabase.from('works').delete().eq('id', workId);
@@ -570,6 +594,27 @@ export async function deleteWork(workId: string): Promise<ActionResult> {
   if (error) {
     console.error('deleteWork failed', error.message);
     return { success: false, message: actionError('Не удалось удалить работу.', error) };
+  }
+
+  // Файлы из Storage удаляем ТОЛЬКО ПОСЛЕ удаления самой работы: если делать
+  // это раньше (как было), getMediaAssetUsage ниже всегда находил бы
+  // "используется — этой же работой" (её строки в work_images ещё существуют
+  // в момент проверки) и никогда бы ничего не удалял. А сам вызов
+  // getMediaAssetUsage нужен, потому что медиатека не копирует файлы при
+  // выборе «Открыть галерею» — то же самое фото работы может быть обложкой
+  // категории, логотипом сайта или картинкой в секции главной; раньше файл
+  // сносился безусловно и мог молча сломать что-то совсем другое.
+  if (images && images.length > 0) {
+    const paths = Array.from(new Set(images.flatMap((img) => [img.storage_path, img.original_path]).filter(Boolean) as string[]));
+    const removable: string[] = [];
+    for (const path of paths) {
+      const usage = await getMediaAssetUsage('works', path);
+      if (!usage.used) removable.push(path);
+    }
+    if (removable.length) {
+      const { error: storageError } = await supabase.storage.from('works').remove(removable);
+      if (storageError) console.error('deleteWork: storage remove failed', storageError.message);
+    }
   }
 
   // Если в группе остались другие цвета, а основной был именно этот — назначаем нового.

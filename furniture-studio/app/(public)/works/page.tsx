@@ -35,7 +35,7 @@ export default async function WorksPage({ searchParams }: { searchParams: { cate
 
   return (
     <div className="pt-[82px]">
-      <section className="container-studio border-b border-ink/10 pt-20 lg:pt-28 pb-10 lg:pb-12">
+      <section className="container-studio border-b border-ink/10 pt-8 lg:pt-14 pb-10 lg:pb-12">
         <div className="flex items-end justify-between gap-8">
           <div>
             <p className="eyebrow flex items-center gap-4"><span className="h-px w-10 bg-ink/25" /> проекты</p>
@@ -49,7 +49,7 @@ export default async function WorksPage({ searchParams }: { searchParams: { cate
           </div>
         </div>
         <div className="mt-10 flex flex-wrap items-center gap-3">
-          <CategoryFilter categories={categories} activeSlug={categorySlug} />
+          <CategoryFilter categories={categories} activeSlug={categorySlug} activeColorHex={colorHex} />
           {colors.length > 1 && <span className="hidden h-8 w-px shrink-0 bg-ink/10 sm:block" aria-hidden="true" />}
           <ColorFilter colors={colors} activeHex={colorHex} categorySlug={categorySlug} />
         </div>

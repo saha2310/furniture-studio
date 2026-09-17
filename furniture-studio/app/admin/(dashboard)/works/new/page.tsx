@@ -27,6 +27,11 @@ export default async function NewWorkPage({ searchParams }: { searchParams: { gr
       ) : (
         <div className="mt-6">
           <WorkForm
+            // См. комментарий у аналогичного key в app/admin/(dashboard)/works/[id]/page.tsx:
+            // без ключа переход "+ Новый цвет" с одного товара сразу на "+ Новый
+            // цвет" другого (тот же маршрут /works/new, другой ?group=) не
+            // размонтирует форму, и поля могут остаться от предыдущего вызова.
+            key={`${groupId ?? 'new'}-${searchParams.category ?? ''}`}
             categories={categories}
             action={createWork}
             submitLabel={isAddingColor ? 'Добавить цвет' : 'Создать работу'}

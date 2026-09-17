@@ -7,8 +7,7 @@ import { heroContentSchema, processContentSchema, contactsGalleryContentSchema }
 import { ACCEPTED_IMAGE_TYPES, MAX_IMAGE_SIZE_BYTES } from '@/lib/utils/image';
 import type { ActionResult } from './works';
 import { actionError } from '@/lib/utils/action-error';
-
-/** Обновление title/subtitle/is_visible для любой секции по ключу — общая часть для всех типов. */
+import { getMediaAssetUsage } from './media';
 export async function updateSectionMeta(
   key: string,
   data: { title?: string; subtitle?: string; is_visible: boolean }
@@ -77,7 +76,16 @@ export async function updateHeroSection(_prev: ActionResult | null, formData: Fo
     if (uploadedPath) await supabase.storage.from('works').remove([uploadedPath]);
     return { success: false, message: actionError('Не удалось сохранить Hero-секцию.', error) };
   }
-  if (currentPath && currentPath !== imagePath && !pickedFromLibrary) await supabase.storage.from('works').remove([currentPath]);
+  if (currentPath && currentPath !== imagePath && !pickedFromLibrary) {
+    // currentPath может быть "одолженным" файлом (выбран когда-то через
+    // «Открыть галерею» без копирования — см. SingleImageField.tsx) —
+    // прежде чем сносить его из Storage, проверяем, не используется ли он
+    // ещё где-то (фото работы, обложка категории, логотип/favicon/OG,
+    // другая секция главной). См. подробный комментарий у
+    // removeUnusedStoragePaths в lib/actions/works.ts.
+    const usage = await getMediaAssetUsage('works', currentPath);
+    if (!usage.used) await supabase.storage.from('works').remove([currentPath]);
+  }
 
   revalidatePath('/', 'layout'); revalidatePath('/admin/home');
   return { success: true, message: 'Hero-секция сохранена' };
@@ -160,6 +168,13 @@ export async function updateContactsGallery(_prev: ActionResult | null, formData
 
   const supabase = await createClient();
 
+  // Нужно узнать, какие изображения были в карусели ДО сохранения — чтобы
+  // после успешного upsert подчистить те, что пропали из нового порядка
+  // (раньше это вообще не делалось: убранное из карусели фото просто
+  // оставалось висеть в Storage бесконечно, ничем не используемое).
+  const { data: previous } = await supabase.from('home_sections').select('content_json').eq('key', 'contacts_gallery').maybeSingle();
+  const previousImages = ((previous?.content_json as { images?: { bucket: string; path: string }[] } | null)?.images ?? []);
+
   let orderTokens: string[] = [];
   try {
     orderTokens = JSON.parse(String(formData.get('gallery_order') ?? '[]'));
@@ -211,5 +226,24 @@ export async function updateContactsGallery(_prev: ActionResult | null, formData
   }
 
   revalidatePath('/contacts');
+  // Файлы, которых больше нет в новом порядке — та же осторожная проверка
+  // "не используется ли где-то ещё", что и для остальных изображений (эти
+  // фото вполне могли быть выбраны через «Открыть галерею» и без копирования
+  // указывать на файл, которым пользуется что-то другое).
+  const nextPaths = new Set(parsed.data.images.map((img) => img.path));
+  const removedByBucket = new Map<'works' | 'site', string[]>();
+  for (const img of previousImages) {
+    if ((img.bucket === 'works' || img.bucket === 'site') && img.path && !nextPaths.has(img.path)) {
+      const list = removedByBucket.get(img.bucket) ?? [];
+      list.push(img.path);
+      removedByBucket.set(img.bucket, list);
+    }
+  }
+  for (const [bucket, paths] of removedByBucket) {
+    for (const path of paths) {
+      const usage = await getMediaAssetUsage(bucket, path);
+      if (!usage.used) await supabase.storage.from(bucket).remove([path]);
+    }
+  }
   return { success: true, message: 'Карусель сохранена' };
 }

@@ -129,10 +129,7 @@ export function WorkCard({
                 <div className="absolute inset-0 bg-[linear-gradient(to_top,rgb(var(--photo-mist)/0.4),transparent,transparent)]" />
               </div>
             </Link>
-            <span className="pointer-events-none absolute left-3 top-3 text-4xl font-light leading-none tracking-tighter text-canvas mix-blend-difference">
-              {String(work.sort_order + 1).padStart(2, '0')}
-            </span>
-            <FavoriteButton workId={work.id} size="sm" className="absolute right-3 top-3 z-20" />
+            <FavoriteButton workId={active.id} size="sm" className="absolute right-3 top-3 z-20" />
           </div>
 
           <div className="flex min-w-0 flex-1 flex-col justify-between p-6 lg:p-7">
@@ -181,10 +178,10 @@ export function WorkCard({
               <div className="absolute inset-0 bg-[linear-gradient(to_top,rgb(var(--photo-mist)/0.45),transparent,transparent)]" />
             </div>
           </Link>
-          <FavoriteButton workId={work.id} size="sm" className="absolute right-3 top-3 z-20" />
+          <FavoriteButton workId={active.id} size="sm" className="absolute right-3 top-3 z-20" />
         </div>
         <div className="p-5 sm:p-6">
-          <div className="flex items-center gap-3 text-[10px] uppercase tracking-[0.16em] text-ink/50"><span>{String(work.sort_order + 1).padStart(2, '0')}</span><span className="h-px flex-1 bg-ink/10" /><span>{work.category?.name}</span></div>
+          <div className="flex items-center gap-3 text-[10px] uppercase tracking-[0.16em] text-ink/50"><span>{work.category?.name}</span></div>
           <div className="mt-7">
             <div className="min-h-[3.4rem]">
               <Link href={activeHref} className="line-clamp-2 text-[19px] leading-snug tracking-[-0.02em] text-ink hover:text-ink/80">{work.title}</Link>

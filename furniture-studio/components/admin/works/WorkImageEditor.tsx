@@ -2,7 +2,6 @@
 
 import Image from 'next/image';
 import { Fragment, useEffect, useMemo, useRef, useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
 import type { WorkImageWithUrl } from '@/types/domain';
 import { ACCEPTED_IMAGE_TYPES, MAX_IMAGE_SIZE_BYTES, workImageUrl } from '@/lib/utils/image';
 import { convertToWebp } from '@/lib/utils/image-client';
@@ -10,10 +9,13 @@ import { createBrowserSupabaseClient } from '@/lib/supabase/browser';
 import { ImageCropDialog } from '@/components/admin/shared/ImageCropDialog';
 import { CatalogImageSettingsDialog } from '@/components/admin/shared/CatalogImageSettingsDialog';
 import { MediaLibraryPicker } from '@/components/admin/shared/MediaLibraryPicker';
-import { copyMediaAssetToWork } from '@/lib/actions/media';
+import { copyMediaAssetFile } from '@/lib/actions/media';
 
 type UploadStatus = 'uploading' | 'done' | 'error';
-interface PendingNewImage { id: string; file: File; url: string; status: UploadStatus; path?: string; originalPath?: string; errorMessage?: string }
+// file опционален: фото, добавленное кнопкой «Добавить из галереи», уже
+// скопировано на сервере в Storage (см. copyMediaAssetFile) — у него сразу
+// есть path и status 'done', а File-объект в браузере отсутствует.
+interface PendingNewImage { id: string; file?: File; url: string; status: UploadStatus; path?: string; originalPath?: string; errorMessage?: string }
 interface PendingReplacement { id: string; file: File; url: string; status: UploadStatus; path?: string; originalPath?: string; errorMessage?: string }
 
 const MAX_MB = Math.round(MAX_IMAGE_SIZE_BYTES / (1024 * 1024));
@@ -23,25 +25,48 @@ export function WorkImageEditor({
   coverImageId,
   workId,
   onBusyChange,
+  onDirty,
 }: {
   images: WorkImageWithUrl[];
   coverImageId: string | null;
   workId?: string | null;
   onBusyChange?: (busy: boolean) => void;
+  // Вызывается при любом изменении, которое реально уйдёт на сервер при
+  // следующем сохранении формы, но само по себе не является нативным
+  // "change" события DOM-поля (выбор фото из медиатеки, правка карточки
+  // каталога) — поэтому не долетело бы до onChange на самой <form>.
+  onDirty?: () => void;
 }) {
-  const router = useRouter();
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [libraryError, setLibraryError] = useState<string | null>(null);
   const [isCopying, startCopyTransition] = useTransition();
+  // Синхронный лок поверх isCopying: React обновляет isCopying асинхронно,
+  // а MediaLibraryPicker ничего не знает о процессе копирования и не
+  // блокирует свои плитки на время запроса. Без этого лока быстрый повторный
+  // клик по той же (или другой) миниатюре до ответа сервера успевал уйти
+  // вторым вызовом copyMediaAssetFile и добавлял фото дважды.
+  const copyLockRef = useRef(false);
 
   function pickFromLibrary(asset: { bucket: 'works' | 'site'; path: string }) {
-    if (!workId) return;
+    if (!workId || copyLockRef.current) return;
+    copyLockRef.current = true;
     setLibraryError(null);
     startCopyTransition(async () => {
-      const result = await copyMediaAssetToWork(workId, asset.path);
-      if (!result.success) { setLibraryError(result.message); return; }
-      setLibraryOpen(false);
-      router.refresh();
+      try {
+        // Копируем байты в папку товара, но НЕ привязываем к work_images
+        // здесь — файл ложится в общий список "новых фотографий" рядом с
+        // обычной загрузкой и попадает в товар только при нажатии «Сохранить
+        // изменения» внизу формы, как и любое другое фото.
+        const result = await copyMediaAssetFile(workId, asset.path);
+        if (!result.success || !result.path) { setLibraryError(result.message); return; }
+        const id = `new:${crypto.randomUUID()}`;
+        const added: PendingNewImage = { id, url: workImageUrl(result.path), status: 'done', path: result.path, originalPath: result.path };
+        setNewImages((items) => [...items, added]);
+        setSelectedCover((current) => current ?? id);
+        setLibraryOpen(false);
+      } finally {
+        copyLockRef.current = false;
+      }
     });
   }
 
@@ -66,6 +91,10 @@ export function WorkImageEditor({
   const [selectedCover, setSelectedCover] = useState<string | null>(coverImageId);
   const [editor, setEditor] = useState<{ kind: 'existing' | 'new'; id: string; sourceUrl: string } | null>(null);
   const [catalogEditor, setCatalogEditor] = useState<WorkImageWithUrl | null>(null);
+  // Настройки карточки (позиция/масштаб/зеркало), применённые в диалоге, но
+  // ещё не сохранённые формой — применяются на сервере только при сабмите
+  // (см. runCatalogSettings в lib/actions/works.ts).
+  const [catalogOverrides, setCatalogOverrides] = useState<Record<string, { x: number; y: number; zoom: number; flip: boolean }>>({});
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
 
@@ -82,6 +111,13 @@ export function WorkImageEditor({
     const busy = newImages.some((item) => item.status === 'uploading') || replacements.some((item) => item.status === 'uploading');
     onBusyChange?.(busy);
   }, [newImages, replacements, onBusyChange]);
+
+  useEffect(() => {
+    const hasPendingChanges =
+      newImages.length > 0 || replacements.length > 0 || deleted.length > 0 || selectedCover !== coverImageId || Object.keys(catalogOverrides).length > 0;
+    if (hasPendingChanges) onDirty?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [newImages, replacements, deleted, selectedCover, catalogOverrides]);
 
   const visibleExisting = images.filter((image) => !deleted.includes(image.id));
 
@@ -126,7 +162,7 @@ export function WorkImageEditor({
     const incoming = Array.from(list);
     const valid = incoming.filter((file) => ACCEPTED_IMAGE_TYPES.includes(file.type) && file.size <= MAX_IMAGE_SIZE_BYTES);
     if (valid.length !== incoming.length) setError(`Некоторые файлы не добавлены. Разрешены JPEG, PNG, WebP до ${MAX_MB} МБ.`);
-    const added: PendingNewImage[] = valid.map((file) => ({ id: `new:${crypto.randomUUID()}`, file, url: URL.createObjectURL(file), status: 'uploading' }));
+    const added: Array<PendingNewImage & { file: File }> = valid.map((file) => ({ id: `new:${crypto.randomUUID()}`, file, url: URL.createObjectURL(file), status: 'uploading' }));
     if (added.length === 0) return;
     setNewImages((items) => [...items, ...added]);
     if (!selectedCover && added[0]) setSelectedCover(added[0].id);
@@ -140,7 +176,7 @@ export function WorkImageEditor({
 
   function retryNewUpload(id: string) {
     const item = newImages.find((i) => i.id === id);
-    if (!item) return;
+    if (!item || !item.file) return;
     setNewImages((items) => items.map((i) => (i.id === id ? { ...i, status: 'uploading', errorMessage: undefined } : i)));
     Promise.all([uploadToStorage(item.file), uploadOriginal(item.file)])
       .then(([path, originalPath]) => setNewImages((items) => items.map((i) => (i.id === id ? { ...i, status: 'done', path, originalPath } : i))))
@@ -168,6 +204,12 @@ export function WorkImageEditor({
 
   function removeExisting(id: string) {
     setDeleted((items) => (items.includes(id) ? items : [...items, id]));
+    setCatalogOverrides((prev) => {
+      if (!(id in prev)) return prev;
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
     setReplacements((items) => {
       const target = items.find((item) => item.id === id);
       if (target?.path) supabaseBrowser.storage.from('works').remove([target.path]).catch(() => {});
@@ -205,9 +247,20 @@ export function WorkImageEditor({
     } else {
       const previous = newImages.find((item) => item.id === editor.id);
       if (previous?.url) URL.revokeObjectURL(previous.url);
-      if (previous?.path) supabaseBrowser.storage.from('works').remove([previous.path]).catch(() => {});
+      // ВАЖНО: для фото, добавленного из медиатеки, path и originalPath —
+      // один и тот же файл (см. pickFromLibrary — там нет отдельного
+      // "оригинала", только скопированный файл). Если удалить его здесь
+      // сразу, ниже мы всё равно попытаемся использовать этот же путь как
+      // originalPath для сохранения — получится ссылка на уже удалённый
+      // файл. Поэтому удаляем старый файл из Storage, только если он не
+      // используется одновременно как "оригинал" (для обычной загрузки с
+      // диска originalPath — это всегда отдельный, другой файл, так что
+      // тут ничего не меняется).
+      if (previous?.path && previous.path !== previous.originalPath) {
+        supabaseBrowser.storage.from('works').remove([previous.path]).catch(() => {});
+      }
       setNewImages((items) => items.map((item) => (item.id === editor.id ? { ...item, file, url, status: 'uploading', path: undefined } : item)));
-      Promise.all([uploadToStorage(file), newImages.find((item) => item.id === editor.id)?.originalPath ? Promise.resolve(newImages.find((item) => item.id === editor.id)?.originalPath as string) : uploadOriginal(file)])
+      Promise.all([uploadToStorage(file), previous?.originalPath ? Promise.resolve(previous.originalPath) : uploadOriginal(file)])
         .then(([path, originalPath]) => setNewImages((items) => items.map((i) => (i.id === editor.id ? { ...i, status: 'done', path, originalPath } : i))))
         .catch(() => setNewImages((items) => items.map((i) => (i.id === editor.id ? { ...i, status: 'error', errorMessage: 'Не удалось загрузить файл.' } : i))));
     }
@@ -279,7 +332,16 @@ export function WorkImageEditor({
               <div className="grid grid-cols-4 gap-px bg-ink/10">
                 <button type="button" onClick={() => setSelectedCover(image.id)} className="bg-surface px-2 py-3 text-[9px] uppercase tracking-[0.11em] text-ink/70 hover:text-ink">Обложка</button>
                 <button type="button" onClick={() => startExistingEdit(image)} className="bg-surface px-2 py-3 text-[9px] uppercase tracking-[0.11em] text-ink/70 hover:text-ink">Правка</button>
-                <button type="button" onClick={() => setCatalogEditor(image)} className="bg-surface px-2 py-3 text-[9px] uppercase tracking-[0.11em] text-ink/70 hover:text-ink">Карточка</button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const override = catalogOverrides[image.id];
+                    setCatalogEditor(override ? { ...image, catalog_position_x: override.x, catalog_position_y: override.y, catalog_zoom: override.zoom, catalog_flip_horizontal: override.flip } : image);
+                  }}
+                  className={`bg-surface px-2 py-3 text-[9px] uppercase tracking-[0.11em] hover:text-ink ${catalogOverrides[image.id] ? 'text-ink' : 'text-ink/70'}`}
+                >
+                  Карточка{catalogOverrides[image.id] ? ' •' : ''}
+                </button>
                 <button type="button" onClick={() => removeExisting(image.id)} className="bg-surface px-2 py-3 text-[9px] uppercase tracking-[0.11em] text-red-200/80 hover:text-red-100">Удалить</button>
               </div>
             </div>
@@ -329,8 +391,29 @@ export function WorkImageEditor({
         </Fragment>
       ))}
       <input type="hidden" name="cover_image_id" value={selectedCover ?? ''} />
+      {Object.entries(catalogOverrides).map(([id, override]) => (
+        <Fragment key={id}>
+          <input type="hidden" name="catalog_settings_ids" value={id} />
+          <input type="hidden" name="catalog_settings_x" value={override.x} />
+          <input type="hidden" name="catalog_settings_y" value={override.y} />
+          <input type="hidden" name="catalog_settings_zoom" value={override.zoom} />
+          <input type="hidden" name="catalog_settings_flip" value={String(override.flip)} />
+        </Fragment>
+      ))}
 
-      {catalogEditor && <CatalogImageSettingsDialog image={catalogEditor} onClose={() => setCatalogEditor(null)} onSaved={() => { setCatalogEditor(null); router.refresh(); }} />}
+      {catalogEditor && (
+        <CatalogImageSettingsDialog
+          image={catalogEditor}
+          onClose={() => setCatalogEditor(null)}
+          onSaved={(settings) => {
+            setCatalogOverrides((prev) => ({
+              ...prev,
+              [catalogEditor.id]: { x: settings.catalog_position_x, y: settings.catalog_position_y, zoom: settings.catalog_zoom, flip: settings.catalog_flip_horizontal },
+            }));
+            setCatalogEditor(null);
+          }}
+        />
+      )}
       {editor && <ImageCropDialog sourceUrl={editor.sourceUrl} initialRatio={4 / 3} onCancel={() => setEditor(null)} onApply={applyEdit} title="Редактирование фотографии" />}
     </section>
   );

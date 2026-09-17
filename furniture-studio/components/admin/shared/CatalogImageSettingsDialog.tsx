@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { updateWorkImageCatalogSettings } from '@/lib/actions/works';
 import type { WorkImageWithUrl } from '@/types/domain';
 
 type Props = {
@@ -19,14 +18,12 @@ export function CatalogImageSettingsDialog({ image, onClose, onSaved }: Props) {
   const [positionY, setPositionY] = useState(image.catalog_position_y ?? 50);
   const [zoom, setZoom] = useState(image.catalog_zoom ?? 1);
   const [flipped, setFlipped] = useState(image.catalog_flip_horizontal ?? false);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape' && !saving) onClose(); };
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose(); };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [onClose, saving]);
+  }, [onClose]);
 
   function onPointerDown(event: React.PointerEvent) {
     const frame = frameRef.current;
@@ -45,17 +42,10 @@ export function CatalogImageSettingsDialog({ image, onClose, onSaved }: Props) {
 
   function stopDrag() { dragRef.current = null; }
 
-  async function save() {
-    setSaving(true);
-    setError(null);
-    const result = await updateWorkImageCatalogSettings(image.id, {
-      catalog_position_x: Number(positionX.toFixed(2)),
-      catalog_position_y: Number(positionY.toFixed(2)),
-      catalog_zoom: Number(zoom.toFixed(2)),
-      catalog_flip_horizontal: flipped,
-    });
-    setSaving(false);
-    if (!result.success) { setError(result.message); return; }
+  // Ничего не пишет на сервер: только передаёт выбранные значения наверх, в
+  // WorkImageEditor, который держит их как несохранённые и отправляет вместе
+  // с остальной формой по нажатию общей кнопки «Сохранить изменения».
+  function save() {
     onSaved({
       catalog_position_x: Number(positionX.toFixed(2)),
       catalog_position_y: Number(positionY.toFixed(2)),
@@ -76,9 +66,9 @@ export function CatalogImageSettingsDialog({ image, onClose, onSaved }: Props) {
           <div>
             <p className="eyebrow">карточка каталога</p>
             <h2 className="mt-1 text-lg text-ink">Настройка изображения для /works</h2>
-            <p className="mt-1 text-xs text-ink/45">Исходная фотография не изменяется. Здесь сохраняется только её положение, масштаб и зеркалирование.</p>
+            <p className="mt-1 text-xs text-ink/45">Исходная фотография не изменяется. Положение, масштаб и зеркалирование применятся при общем сохранении формы.</p>
           </div>
-          <button type="button" onClick={onClose} disabled={saving} className="text-3xl leading-none text-ink/55 hover:text-ink disabled:opacity-40" aria-label="Закрыть">×</button>
+          <button type="button" onClick={onClose} className="text-3xl leading-none text-ink/55 hover:text-ink" aria-label="Закрыть">×</button>
         </div>
 
         <div className="grid min-h-0 gap-5 overflow-auto p-5 lg:grid-cols-[minmax(0,1fr),240px] sm:p-6">
@@ -110,10 +100,9 @@ export function CatalogImageSettingsDialog({ image, onClose, onSaved }: Props) {
               <span>↔ Зеркалить</span><span>{flipped ? 'Вкл.' : 'Выкл.'}</span>
             </button>
             <button type="button" onClick={reset} className="w-full border border-ink/10 px-3 py-3 text-[10px] uppercase tracking-[0.12em] text-ink/55 hover:border-ink/30 hover:text-ink">Сбросить</button>
-            {error && <p role="alert" className="border border-danger/20 bg-danger/5 px-3 py-2 text-xs leading-5 text-danger">{error}</p>}
             <div className="flex gap-2 pt-2">
-              <button type="button" onClick={onClose} disabled={saving} className="flex-1 border border-ink/15 px-3 py-3 text-[10px] uppercase tracking-[0.12em] text-ink/65">Отмена</button>
-              <button type="button" onClick={save} disabled={saving} className="flex-1 bg-ink px-3 py-3 text-[10px] uppercase tracking-[0.12em] text-canvas disabled:opacity-50">{saving ? 'Сохраняем…' : 'Сохранить'}</button>
+              <button type="button" onClick={onClose} className="flex-1 border border-ink/15 px-3 py-3 text-[10px] uppercase tracking-[0.12em] text-ink/65">Отмена</button>
+              <button type="button" onClick={save} className="flex-1 bg-ink px-3 py-3 text-[10px] uppercase tracking-[0.12em] text-canvas">Применить</button>
             </div>
           </div>
         </div>

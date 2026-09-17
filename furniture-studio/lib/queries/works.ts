@@ -106,7 +106,17 @@ async function categoryMembershipOrFilter(
   supabase: ReturnType<typeof createStaticClient> | Awaited<ReturnType<typeof createClient>>,
   categoryId: string,
 ): Promise<string> {
-  const { data } = await supabase.from('work_categories').select('work_id').eq('category_id', categoryId);
+  const { data, error } = await supabase.from('work_categories').select('work_id').eq('category_id', categoryId);
+  // Раньше ошибка здесь проглатывалась молча: если на конкретном
+  // Supabase-проекте не накатана миграция с таблицей work_categories,
+  // публичный каталог просто переставал учитывать "дополнительные
+  // категории" товара без единого следа в логах — выглядело как забытая
+  // фича, а не как несделанная миграция. Деградацию до фильтра по одной
+  // основной категории оставляем (падать целиком из-за этого на публичном
+  // сайте — хуже), но теперь хотя бы видно, в чём причина.
+  if (error) {
+    console.error('categoryMembershipOrFilter: work_categories query failed (миграция применена?)', error.message);
+  }
   const workIds = Array.from(new Set((data ?? []).map((row) => row.work_id)));
   const parts = [`category_id.eq.${categoryId}`];
   if (workIds.length) parts.push(`id.in.(${workIds.join(',')})`);

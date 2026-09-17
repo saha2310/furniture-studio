@@ -16,7 +16,7 @@ export default async function FavoritesPage() {
 
   return (
     <div className="pt-[82px]">
-      <section className="container-studio border-b border-ink/10 py-20 lg:py-28">
+      <section className="container-studio border-b border-ink/10 py-10 lg:py-28">
         <p className="eyebrow">сохранённое</p>
         <h1 className="display-title mt-6">Избранные работы</h1>
         <p className="mt-8 max-w-[40rem] text-[15px] leading-7 text-espresso">

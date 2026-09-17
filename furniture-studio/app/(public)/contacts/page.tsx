@@ -43,8 +43,8 @@ export default async function ContactsPage() {
 
   return (
     <div className="pt-[82px]">
-      <section className="grid min-h-[calc(100vh-82px)] lg:grid-cols-2">
-        <div className="relative min-h-[620px] overflow-hidden border-b border-ink/10 lg:border-b-0 lg:border-r">
+      <section className="grid min-h-0 lg:min-h-[calc(100vh-82px)] lg:grid-cols-2">
+        <div className="relative min-h-[380px] overflow-hidden border-b border-ink/10 lg:min-h-[620px] lg:border-b-0 lg:border-r">
           <div className="contact-photo-in absolute inset-0">
             <ContactParallaxPhoto>
               {galleryImages.length > 0 ? (

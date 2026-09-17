@@ -138,12 +138,21 @@ export async function deleteMediaAsset(bucket: MediaBucket, path: string): Promi
 }
 
 /**
- * Копирует уже загруженное изображение (выбранное в медиатеке) в конкретную
- * работу — используется кнопкой «Добавить из галереи» в редакторе фото
- * работы. Копирование идёт на стороне Supabase Storage (.copy), без
- * повторной передачи файла через браузер пользователя.
+ * Копирует уже загруженное изображение (выбранное в медиатеке) в папку
+ * работы на стороне Supabase Storage (.copy) — используется кнопкой
+ * «Добавить из галереи» в редакторе фото работы.
+ *
+ * ВАЖНО: эта функция НЕ пишет ничего в work_images и не привязывает файл к
+ * товару — только копирует байты в Storage и возвращает путь. Раньше она
+ * сразу делала insert в work_images, из-за чего фото прикреплялось к
+ * товару мгновенно по клику, в обход общей кнопки «Сохранить изменения»
+ * внизу формы (и оставалось привязанным, даже если админ затем нажимал
+ * «Отмена»). Теперь клиент (WorkImageEditor) добавляет скопированный путь
+ * в тот же список "новых фотографий", что и обычная загрузка с диска —
+ * реальная привязка к work_images происходит там же и тогда же, где и для
+ * остальных фото: в syncWorkImages при сабмите формы.
  */
-export async function copyMediaAssetToWork(workId: string, sourcePath: string): Promise<{ success: boolean; message: string }> {
+export async function copyMediaAssetFile(workId: string, sourcePath: string): Promise<{ success: boolean; message: string; path?: string }> {
   try {
     await requireUser();
   } catch (e) {
@@ -158,10 +167,5 @@ export async function copyMediaAssetToWork(workId: string, sourcePath: string): 
   const { error: copyError } = await supabase.storage.from('works').copy(sourcePath, destPath);
   if (copyError) return { success: false, message: 'Не удалось скопировать файл: ' + copyError.message };
 
-  const { count } = await supabase.from('work_images').select('id', { count: 'exact', head: true }).eq('work_id', workId);
-  const { error: insertError } = await supabase.from('work_images').insert({ work_id: workId, storage_path: destPath, sort_order: count ?? 0 });
-  if (insertError) return { success: false, message: 'Файл скопирован, но не удалось привязать к работе: ' + insertError.message };
-
-  revalidatePath(`/admin/works/${workId}`);
-  return { success: true, message: 'Фото добавлено из медиатеки' };
+  return { success: true, message: 'Фото скопировано', path: destPath };
 }

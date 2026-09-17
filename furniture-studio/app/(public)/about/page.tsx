@@ -20,7 +20,7 @@ export default async function AboutPage() {
 
   return (
     <div className="pt-[82px]">
-      <section className="container-studio grid min-h-[560px] items-end gap-12 border-b border-ink/10 py-20 lg:grid-cols-[.9fr,1.1fr] lg:py-24">
+      <section className="container-studio grid min-h-0 items-end gap-12 border-b border-ink/10 py-10 lg:min-h-[560px] lg:grid-cols-[.9fr,1.1fr] lg:py-24">
         <div>
           <p className="eyebrow">мастерская</p>
           <h1 className="display-title mt-6 max-w-[9ch]">{title}</h1>

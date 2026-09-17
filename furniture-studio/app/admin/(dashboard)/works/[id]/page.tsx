@@ -29,6 +29,14 @@ export default async function EditWorkPage({ params }: { params: { id: string } 
 
       <div className="mt-6">
         <WorkForm
+          // Ключ обязателен: без него переход между цветовыми вариантами
+          // через VariantBar (Link на /admin/works/{siblingId}) остаётся на
+          // той же позиции дерева React, и клиентский компонент не
+          // размонтируется — поля формы (useState из initialData) и
+          // WorkImageEditor молча продолжают показывать данные предыдущего
+          // товара, пока не обновить страницу вручную. key={work.id}
+          // заставляет React пересоздать форму заново при каждой смене id.
+          key={work.id}
           categories={categories}
           initialData={{ ...work, extraCategoryIds }}
           colorVariants={colorVariants}

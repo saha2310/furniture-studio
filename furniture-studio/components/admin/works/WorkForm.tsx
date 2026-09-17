@@ -559,7 +559,7 @@ export function WorkForm({ categories, initialData, action, submitLabel, redirec
               </div>
             </div>
           )}
-          <WorkImageEditor key={saveVersion} images={initialData?.images ?? []} coverImageId={initialData?.cover_image_id ?? null} workId={initialData?.id ?? null} onBusyChange={setImagesUploading} />
+          <WorkImageEditor key={saveVersion} images={initialData?.images ?? []} coverImageId={initialData?.cover_image_id ?? null} workId={initialData?.id ?? null} onBusyChange={setImagesUploading} onDirty={() => setDirty(true)} />
         </section>
 
         <section className="border-t border-ink/10 pt-7">

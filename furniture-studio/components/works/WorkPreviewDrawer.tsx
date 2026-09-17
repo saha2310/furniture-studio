@@ -87,7 +87,7 @@ export function WorkPreviewDrawer({
           {galleryImages.length > 0 ? (
             <div className="relative">
               <WorkGallery images={galleryImages} title={work.title} />
-              <FavoriteButton workId={work.id} size="sm" className="absolute right-3 top-3 z-20" />
+              <FavoriteButton workId={active.id} size="sm" className="absolute right-3 top-3 z-20" />
             </div>
           ) : (
             <div className="relative aspect-[4/3] w-full overflow-hidden bg-surface">

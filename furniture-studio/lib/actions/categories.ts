@@ -7,6 +7,7 @@ import { categorySchema } from '@/lib/validations/work.schema';
 import { ACCEPTED_IMAGE_TYPES, MAX_IMAGE_SIZE_BYTES } from '@/lib/utils/image';
 import type { ActionResult } from './works';
 import { actionError } from '@/lib/utils/action-error';
+import { getMediaAssetUsage } from './media';
 
 async function validateImage(file: File | null): Promise<string | null> {
   if (!file || file.size === 0) return null;
@@ -98,7 +99,15 @@ export async function updateCategory(categoryId: string, _prev: ActionResult | n
     return { success: false, message };
   }
 
-  if (current.image_path && current.image_path !== nextImagePath && !pickedFromLibrary) await supabase.storage.from('works').remove([current.image_path]);
+  if (current.image_path && current.image_path !== nextImagePath && !pickedFromLibrary) {
+    // Та же история, что и в lib/actions/works.ts / home-sections.ts:
+    // изображение категории могло быть выбрано через «Открыть галерею» без
+    // копирования и оказаться тем же физическим файлом, что и чья-то фотография
+    // работы, логотип и т.п. Проверяем использование в других местах перед
+    // безусловным удалением.
+    const usage = await getMediaAssetUsage('works', current.image_path);
+    if (!usage.used) await supabase.storage.from('works').remove([current.image_path]);
+  }
   revalidatePath('/admin/categories'); revalidatePath('/works'); revalidatePath('/');
   return { success: true, message: 'Изменения сохранены' };
 }
@@ -109,10 +118,34 @@ export async function deleteCategory(categoryId: string): Promise<ActionResult> 
   const { count } = await supabase.from('works').select('id', { count: 'exact', head: true }).eq('category_id', categoryId);
   if (count && count > 0) return { success: false, message: `Нельзя удалить: в категории ${count} работ(а). Сначала перенесите или удалите их.` };
 
+  // Раньше здесь проверялась только основная категория (works.category_id).
+  // Но категорию можно назначить работе и как ДОПОЛНИТЕЛЬНУЮ (work_categories,
+  // on delete cascade) — без этой проверки категорию, использующуюся только
+  // как дополнительная, можно было удалить, и у всех таких работ она молча
+  // пропадала бы (каскадное удаление строк в work_categories), хотя диалог
+  // подтверждения обещает «удалить можно только категорию без работ».
+  const { count: extraCount, error: extraError } = await supabase
+    .from('work_categories')
+    .select('work_id', { count: 'exact', head: true })
+    .eq('category_id', categoryId);
+  if (extraError) {
+    // Если таблицы ещё нет (миграция 0007 не применена) — не блокируем
+    // удаление совсем, но оставляем след в логах, а не проглатываем молча.
+    console.error('deleteCategory: work_categories query failed (миграция применена?)', extraError.message);
+  } else if (extraCount && extraCount > 0) {
+    return { success: false, message: `Нельзя удалить: категория используется как дополнительная у ${extraCount} работ(ы). Сначала уберите её там.` };
+  }
+
   const { data: category } = await supabase.from('categories').select('image_path').eq('id', categoryId).maybeSingle();
   const { error } = await supabase.from('categories').delete().eq('id', categoryId);
   if (error) return { success: false, message: actionError('Не удалось удалить категорию.', error) };
-  if (category?.image_path) await supabase.storage.from('works').remove([category.image_path]);
+  if (category?.image_path) {
+    // Строка categories уже удалена выше, так что getMediaAssetUsage здесь
+    // корректно не увидит "используется этой же категорией" — только
+    // сторонние ссылки (фото работы, логотип, секция главной).
+    const usage = await getMediaAssetUsage('works', category.image_path);
+    if (!usage.used) await supabase.storage.from('works').remove([category.image_path]);
+  }
   revalidatePath('/admin/categories'); revalidatePath('/works'); revalidatePath('/');
   return { success: true, message: 'Категория удалена' };
 }

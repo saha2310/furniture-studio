@@ -84,8 +84,13 @@ export function SingleImageField({
   }
 
   function openEditor() {
-    const source = previewUrl || existingUrl;
-    if (source) setEditorSource(source);
+    // Раньше здесь было `previewUrl || existingUrl` — если картинку выбрали
+    // кнопкой «Открыть галерею» (mediaPath/mediaUrl), а не загрузкой файла,
+    // редактор открывался со СТАРЫМ изображением (или не открывался вовсе,
+    // если старого не было). currentUrl уже правильно учитывает все три
+    // источника по приоритету (previewUrl → mediaUrl → existingUrl) — его и
+    // используем.
+    if (currentUrl) setEditorSource(currentUrl);
   }
 
   function applyCrop(nextFile: File, url: string) {
@@ -95,6 +100,13 @@ export function SingleImageField({
     setPreviewUrl(url);
     setInputFile(nextFile);
     setRemove(false);
+    // Если источником для кадрирования был файл из медиатеки (mediaPath),
+    // после кропа это уже самостоятельный новый файл — отправлять его нужно
+    // как обычную загрузку (через file), а не как ссылку на старый путь в
+    // медиатеке. Без этой строки mediaPath оставался бы в состоянии (хоть
+    // сервер и игнорирует его при наличии file) — просто лишнее, спутанное
+    // состояние.
+    setMediaPath(null);
     setEditorSource(null);
   }
 
