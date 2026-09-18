@@ -224,12 +224,27 @@ export function WorkImageEditor({
 
   function startExistingEdit(image: WorkImageWithUrl) {
     const replacement = replacements.find((item) => item.id === image.id);
-    const sourceUrl = replacement?.url ?? (image.original_path ? workImageUrl(image.original_path) : image.url);
+    // Если в этой же сессии уже сделана замена (с кропом) — replacement.url
+    // указывает на УЖЕ ОБРЕЗАННЫЙ результат той правки, а не на исходник.
+    // replacement.originalPath к этому моменту уже вычислен (см. applyEdit)
+    // и указывает на настоящий несжатый оригинал — его и берём в приоритете,
+    // иначе повторный кроп стартовал бы не от оригинала, а от предыдущего
+    // кропа (тот же класс бага, что чинили у startNewEdit ниже).
+    const sourceUrl = replacement?.originalPath
+      ? workImageUrl(replacement.originalPath)
+      : (replacement?.url ?? (image.original_path ? workImageUrl(image.original_path) : image.url));
     setEditor({ kind: 'existing', id: image.id, sourceUrl });
   }
 
   function startNewEdit(image: PendingNewImage) {
-    setEditor({ kind: 'new', id: image.id, sourceUrl: image.url });
+    // Раньше здесь всегда брался image.url — превью, которое после первого
+    // кропа в этой же сессии уже указывает на ОБРЕЗАННЫЙ результат (см.
+    // applyEdit: url перезаписывается результатом кропа). originalPath при
+    // этом уже корректно вычислен и лежит в состоянии с самого первого
+    // аплоада (addFiles) — просто не использовался тут. Берём его в
+    // приоритете, как и в startExistingEdit.
+    const sourceUrl = image.originalPath ? workImageUrl(image.originalPath) : image.url;
+    setEditor({ kind: 'new', id: image.id, sourceUrl });
   }
 
   function applyEdit(file: File, url: string) {

@@ -23,6 +23,16 @@ async function saveCategoryImage(supabase: Awaited<ReturnType<typeof createClien
   return error ? { path: null, error: 'Не удалось загрузить изображение категории.' } : { path, error: null };
 }
 
+// Оригинал уже загружен браузером напрямую в Storage (см.
+// SingleImageField.uploadOriginalDirect) — тут только читаем присланный путь.
+// Если клиент не прислал его (например, загрузка оригинала не удалась —
+// SingleImageField покажет об этом предупреждение), честно возвращаем null,
+// а не подставляем что-то похожее на оригинал.
+function readSubmittedOriginalPath(formData: FormData): string | null {
+  const value = formData.get('category_image_original_path');
+  return typeof value === 'string' && value.trim().length > 0 ? value : null;
+}
+
 export async function createCategory(_prev: ActionResult | null, formData: FormData): Promise<ActionResult> {
   try { await requireUser(); } catch (e) { if (isUnauthorizedError(e)) return { success: false, message: 'Требуется авторизация.' }; throw e; }
 
@@ -47,7 +57,8 @@ export async function createCategory(_prev: ActionResult | null, formData: FormD
       await supabase.from('categories').delete().eq('id', data.id);
       return { success: false, message: uploaded.error ?? 'Не удалось сохранить изображение категории.' };
     }
-    const { error: updateError } = await supabase.from('categories').update({ image_path: uploaded.path }).eq('id', data.id);
+    const originalPath = readSubmittedOriginalPath(formData);
+    const { error: updateError } = await supabase.from('categories').update({ image_path: uploaded.path, image_original_path: originalPath }).eq('id', data.id);
     if (updateError) {
       await supabase.storage.from('works').remove([uploaded.path]);
       await supabase.from('categories').delete().eq('id', data.id);
@@ -56,7 +67,7 @@ export async function createCategory(_prev: ActionResult | null, formData: FormD
   }
 
   revalidatePath('/admin/categories'); revalidatePath('/works'); revalidatePath('/');
-  return { success: true, message: 'Категория создана' };
+  return { success: true, message: 'Категория создана', id: data.id };
 }
 
 export async function updateCategory(categoryId: string, _prev: ActionResult | null, formData: FormData): Promise<ActionResult> {
@@ -71,28 +82,39 @@ export async function updateCategory(categoryId: string, _prev: ActionResult | n
   if (imageError) return { success: false, message: imageError };
 
   const supabase = await createClient();
-  const { data: current, error: currentError } = await supabase.from('categories').select('image_path').eq('id', categoryId).maybeSingle();
+  const { data: current, error: currentError } = await supabase.from('categories').select('image_path, image_original_path').eq('id', categoryId).maybeSingle();
   if (currentError) return { success: false, message: actionError('Не удалось прочитать категорию.', currentError) };
   if (!current) return { success: false, message: 'Категория не найдена.' };
 
   const mediaPath = formData.get('category_image_media_path');
   const pickedFromLibrary = typeof mediaPath === 'string' && mediaPath.trim().length > 0;
+  const submittedOriginalPath = readSubmittedOriginalPath(formData);
 
   let nextImagePath = current.image_path;
+  let nextOriginalPath = current.image_original_path;
   let uploadedPath: string | null = null;
   if (file) {
     const uploaded = await saveCategoryImage(supabase, categoryId, file);
     if (uploaded.error || !uploaded.path) return { success: false, message: uploaded.error ?? 'Не удалось загрузить изображение.' };
     nextImagePath = uploaded.path;
     uploadedPath = uploaded.path;
+    // Честно: если браузер не прислал оригинал (см. readSubmittedOriginalPath),
+    // не выдумываем его — следующий кроп начнётся от только что загруженного
+    // файла, что тоже правильно (это и есть исходник для нового файла).
+    nextOriginalPath = submittedOriginalPath;
   } else if (pickedFromLibrary) {
     // Уже существующий файл, выбранный в медиатеке — без повторной загрузки.
     nextImagePath = mediaPath as string;
+    // Без отдельного оригинала у файла из медиатеки используем тот же путь,
+    // если только пользователь не обрезал картинку перед сохранением — тогда
+    // submittedOriginalPath уже указывает на неё саму.
+    nextOriginalPath = submittedOriginalPath ?? (mediaPath as string);
   } else if (formData.get('category_image_remove') === '1') {
     nextImagePath = null;
+    nextOriginalPath = null;
   }
 
-  const { error } = await supabase.from('categories').update({ ...parsed.data, image_path: nextImagePath }).eq('id', categoryId);
+  const { error } = await supabase.from('categories').update({ ...parsed.data, image_path: nextImagePath, image_original_path: nextOriginalPath }).eq('id', categoryId);
   if (error) {
     if (uploadedPath) await supabase.storage.from('works').remove([uploadedPath]);
     const message = error.code === '23505' ? 'Категория с таким URL уже существует.' : actionError('Не удалось сохранить изменения.', error);
@@ -107,6 +129,10 @@ export async function updateCategory(categoryId: string, _prev: ActionResult | n
     // безусловным удалением.
     const usage = await getMediaAssetUsage('works', current.image_path);
     if (!usage.used) await supabase.storage.from('works').remove([current.image_path]);
+  }
+  if (current.image_original_path && current.image_original_path !== nextOriginalPath && current.image_original_path !== current.image_path) {
+    const usage = await getMediaAssetUsage('works', current.image_original_path);
+    if (!usage.used) await supabase.storage.from('works').remove([current.image_original_path]);
   }
   revalidatePath('/admin/categories'); revalidatePath('/works'); revalidatePath('/');
   return { success: true, message: 'Изменения сохранены' };
@@ -136,7 +162,7 @@ export async function deleteCategory(categoryId: string): Promise<ActionResult> 
     return { success: false, message: `Нельзя удалить: категория используется как дополнительная у ${extraCount} работ(ы). Сначала уберите её там.` };
   }
 
-  const { data: category } = await supabase.from('categories').select('image_path').eq('id', categoryId).maybeSingle();
+  const { data: category } = await supabase.from('categories').select('image_path, image_original_path').eq('id', categoryId).maybeSingle();
   const { error } = await supabase.from('categories').delete().eq('id', categoryId);
   if (error) return { success: false, message: actionError('Не удалось удалить категорию.', error) };
   if (category?.image_path) {
@@ -145,6 +171,10 @@ export async function deleteCategory(categoryId: string): Promise<ActionResult> 
     // сторонние ссылки (фото работы, логотип, секция главной).
     const usage = await getMediaAssetUsage('works', category.image_path);
     if (!usage.used) await supabase.storage.from('works').remove([category.image_path]);
+  }
+  if (category?.image_original_path && category.image_original_path !== category.image_path) {
+    const usage = await getMediaAssetUsage('works', category.image_original_path);
+    if (!usage.used) await supabase.storage.from('works').remove([category.image_original_path]);
   }
   revalidatePath('/admin/categories'); revalidatePath('/works'); revalidatePath('/');
   return { success: true, message: 'Категория удалена' };

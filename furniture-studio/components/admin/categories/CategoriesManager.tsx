@@ -12,9 +12,9 @@ import { slugify } from '@/lib/utils/slug';
 import type { Category } from '@/types/domain';
 import { AdminSection } from '@/components/admin/shared/AdminSection';
 
-function Submit({ label }: { label: string }) {
+function Submit({ label, busy }: { label: string; busy?: boolean }) {
   const { pending } = useFormStatus();
-  return <button type="submit" disabled={pending} className="min-h-11 border border-ink/15 bg-ink px-4 py-3 text-[10px] uppercase tracking-[0.14em] text-canvas hover:bg-ink/85 disabled:cursor-not-allowed disabled:opacity-45">{pending ? 'Сохранение…' : label}</button>;
+  return <button type="submit" disabled={pending || busy} className="min-h-11 border border-ink/15 bg-ink px-4 py-3 text-[10px] uppercase tracking-[0.14em] text-canvas hover:bg-ink/85 disabled:cursor-not-allowed disabled:opacity-45">{pending ? 'Сохранение…' : label}</button>;
 }
 
 function Fields({ values, controlled = false, onName, onSlug }: { values: { name: string; slug: string; sort: number }; controlled?: boolean; onName?: (value: string) => void; onSlug?: (value: string) => void }) {
@@ -30,12 +30,16 @@ function NewCategoryForm() {
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [touched, setTouched] = useState(false);
+  // Пока «сырой» оригинал изображения категории ещё грузится в Storage
+  // напрямую из браузера (см. SingleImageField), блокируем сохранение —
+  // иначе форма может уйти раньше, чем путь к оригиналу будет готов.
+  const [imageBusy, setImageBusy] = useState(false);
 
   return <AdminSection title="Добавить категорию" description="Новое направление появится в фильтрах и на сайте." defaultOpen>
     <form action={formAction} className="space-y-5">
       <Fields controlled values={{ name, slug, sort: 0 }} onName={(value) => { setName(value); if (!touched) setSlug(slugify(value)); }} onSlug={(value) => { setTouched(true); setSlug(value); }} />
-      <SingleImageField fieldName="category_image" label="Изображение категории" help="Изображение используется в карточке категории. Перед сохранением можно выбрать пропорцию, масштаб и положение кадра." cropRatio={4 / 3} compact />
-      <div className="flex flex-wrap items-center gap-3"><Submit label="Добавить категорию" />{state && <FormStatus state={{ status: state.success ? 'success' : 'error', message: state.message }} />}</div>
+      <SingleImageField fieldName="category_image" label="Изображение категории" help="Изображение используется в карточке категории. Перед сохранением можно выбрать пропорцию, масштаб и положение кадра." cropRatio={4 / 3} compact onBusyChange={setImageBusy} />
+      <div className="flex flex-wrap items-center gap-3"><Submit label="Добавить категорию" busy={imageBusy} />{state && <FormStatus state={{ status: state.success ? 'success' : 'error', message: state.message }} />}</div>
     </form>
   </AdminSection>;
 }
@@ -43,12 +47,13 @@ function NewCategoryForm() {
 function CategoryRow({ category }: { category: Category }) {
   const [editing, setEditing] = useState(false);
   const [state, formAction] = useFormState(updateCategory.bind(null, category.id), null);
+  const [imageBusy, setImageBusy] = useState(false);
 
   if (editing) return <form action={formAction} className="border-b border-ink/10 p-5 last:border-0 sm:p-6">
     <div className="space-y-5">
       <Fields values={{ name: category.name, slug: category.slug, sort: category.sort_order }} />
-      <SingleImageField fieldName="category_image" existingPath={category.image_path} label="Изображение категории" help="Изменения текста и изображения сохраняются одной кнопкой ниже." cropRatio={4 / 3} compact />
-      <div className="flex flex-wrap items-center gap-3"><Submit label="Сохранить изменения" /><button type="button" onClick={() => setEditing(false)} className="min-h-11 border border-ink/10 px-4 py-3 text-[10px] uppercase tracking-[0.14em] text-ink/55 hover:text-ink">Отмена</button>{state && <FormStatus state={{ status: state.success ? 'success' : 'error', message: state.message }} />}</div>
+      <SingleImageField fieldName="category_image" existingPath={category.image_path} existingOriginalPath={category.image_original_path} label="Изображение категории" help="Изменения текста и изображения сохраняются одной кнопкой ниже." cropRatio={4 / 3} compact onBusyChange={setImageBusy} />
+      <div className="flex flex-wrap items-center gap-3"><Submit label="Сохранить изменения" busy={imageBusy} /><button type="button" onClick={() => setEditing(false)} className="min-h-11 border border-ink/10 px-4 py-3 text-[10px] uppercase tracking-[0.14em] text-ink/55 hover:text-ink">Отмена</button>{state && <FormStatus state={{ status: state.success ? 'success' : 'error', message: state.message }} />}</div>
     </div>
   </form>;
 

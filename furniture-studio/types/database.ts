@@ -14,6 +14,10 @@ export interface Database {
           sort_order: number;
           created_at: string;
           image_path: string | null;
+          // Несжатый оригинал, из которого сделан image_path — нужен, чтобы
+          // повторное кадрирование в редакторе стартовало от исходника, а не
+          // от уже обрезанного результата (см. 0010_image_originals.sql).
+          image_original_path: string | null;
         };
         Insert: {
           id?: string;
@@ -21,6 +25,7 @@ export interface Database {
           slug: string;
           sort_order?: number;
           image_path?: string | null;
+          image_original_path?: string | null;
           created_at?: string;
         };
         Update: Partial<Database['public']['Tables']['categories']['Insert']>;
@@ -123,13 +128,16 @@ export interface Database {
           id: number;
           company_name: string | null;
           logo_path: string | null;
+          logo_original_path: string | null;
           favicon_path: string | null;
+          favicon_original_path: string | null;
           phone: string | null;
           email: string | null;
           address: string | null;
           seo_default_title: string | null;
           seo_default_description: string | null;
           og_image_path: string | null;
+          og_image_original_path: string | null;
           updated_at: string;
         };
         Insert: Partial<Database['public']['Tables']['site_settings']['Row']> & { id?: number };

@@ -43,19 +43,27 @@ export async function updateHeroSection(_prev: ActionResult | null, formData: Fo
     primaryCtaLabel: formData.get('primaryCtaLabel'), primaryCtaHref: formData.get('primaryCtaHref'),
     secondaryCtaLabel: formData.get('secondaryCtaLabel'), secondaryCtaHref: formData.get('secondaryCtaHref'),
     imagePath: null,
+    imageOriginalPath: null,
   });
   if (!parsed.success) return { success: false, message: parsed.error.issues[0]?.message ?? 'Проверьте поля формы' };
 
   const supabase = await createClient();
   const { data: current, error: currentError } = await supabase.from('home_sections').select('content_json').eq('key', 'hero').maybeSingle();
   if (currentError) return { success: false, message: 'Не удалось прочитать текущий Hero.' };
-  const currentPath = (current?.content_json as { imagePath?: string | null } | null)?.imagePath ?? null;
+  const currentContent = current?.content_json as { imagePath?: string | null; imageOriginalPath?: string | null } | null;
+  const currentPath = currentContent?.imagePath ?? null;
+  const currentOriginalPath = currentContent?.imageOriginalPath ?? null;
   const file = formData.get('image');
   let imagePath = currentPath;
+  let imageOriginalPath = currentOriginalPath;
   let uploadedPath: string | null = null;
 
   const mediaPath = formData.get('image_media_path');
   const pickedFromLibrary = typeof mediaPath === 'string' && mediaPath.trim().length > 0;
+  // Оригинал уже загружен браузером напрямую в Storage — см.
+  // SingleImageField.uploadOriginalDirect.
+  const submittedOriginalPathRaw = formData.get('image_original_path');
+  const submittedOriginalPath = typeof submittedOriginalPathRaw === 'string' && submittedOriginalPathRaw.trim().length > 0 ? submittedOriginalPathRaw : null;
 
   if (file instanceof File && file.size > 0) {
     if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) return { success: false, message: 'Разрешены JPEG, PNG и WebP.' };
@@ -65,12 +73,16 @@ export async function updateHeroSection(_prev: ActionResult | null, formData: Fo
     const { error } = await supabase.storage.from('works').upload(path, file, { contentType: file.type, cacheControl: '31536000' });
     if (error) return { success: false, message: 'Не удалось загрузить изображение Hero.' };
     imagePath = path; uploadedPath = path;
+    // Честно: если браузер не прислал оригинал, не выдумываем его — см.
+    // тот же комментарий в lib/actions/categories.ts.
+    imageOriginalPath = submittedOriginalPath;
   } else if (pickedFromLibrary) {
     // Уже существующий файл из медиатеки — без повторной загрузки.
     imagePath = mediaPath as string;
-  } else if (formData.get('image_remove') === '1') imagePath = null;
+    imageOriginalPath = submittedOriginalPath ?? (mediaPath as string);
+  } else if (formData.get('image_remove') === '1') { imagePath = null; imageOriginalPath = null; }
 
-  const nextContent = { ...parsed.data, imagePath };
+  const nextContent = { ...parsed.data, imagePath, imageOriginalPath };
   const { error } = await supabase.from('home_sections').update({ content_json: nextContent, is_visible: formData.get('is_visible') === 'on' }).eq('key', 'hero');
   if (error) {
     if (uploadedPath) await supabase.storage.from('works').remove([uploadedPath]);
@@ -85,6 +97,10 @@ export async function updateHeroSection(_prev: ActionResult | null, formData: Fo
     // removeUnusedStoragePaths в lib/actions/works.ts.
     const usage = await getMediaAssetUsage('works', currentPath);
     if (!usage.used) await supabase.storage.from('works').remove([currentPath]);
+  }
+  if (currentOriginalPath && currentOriginalPath !== imageOriginalPath && currentOriginalPath !== currentPath) {
+    const usage = await getMediaAssetUsage('works', currentOriginalPath);
+    if (!usage.used) await supabase.storage.from('works').remove([currentOriginalPath]);
   }
 
   revalidatePath('/', 'layout'); revalidatePath('/admin/home');

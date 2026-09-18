@@ -11,6 +11,7 @@ const FALLBACK: HeroContent = {
   secondaryCtaLabel: 'Посмотреть работы',
   secondaryCtaHref: '/works',
   imagePath: null,
+  imageOriginalPath: null,
 };
 
 export function Hero({ content }: { content?: HeroContent | null }) {

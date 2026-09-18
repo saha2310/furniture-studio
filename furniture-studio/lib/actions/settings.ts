@@ -7,6 +7,7 @@ import { siteSettingsSchema, contactLinkSchema, menuItemSchema } from '@/lib/val
 import { ACCEPTED_IMAGE_TYPES, MAX_IMAGE_SIZE_BYTES } from '@/lib/utils/image';
 import type { ActionResult } from './works';
 import { actionError } from '@/lib/utils/action-error';
+import { getMediaAssetUsage } from './media';
 
 // Если выбрана платформа «Телефон», а в поле «Ссылка» вписан просто номер без
 // tel: — ссылка на сайте была бы битой (браузер попробует открыть как обычный
@@ -59,21 +60,33 @@ export async function saveSiteAsset(
 ): Promise<ActionResult> {
   try { await requireUser(); } catch (e) { if (isUnauthorizedError(e)) return { success: false, message: 'Требуется авторизация.' }; throw e; }
 
+  // Несжатый оригинал этого же изображения — отдельная колонка (см.
+  // 0010_image_originals.sql), нужна, чтобы повторное открытие редактора
+  // кадрирования стартовало от исходника, а не от уже обрезанного
+  // результата (см. lib/actions/../../components/admin/shared/SingleImageField.tsx).
+  const originalField = `${field.replace(/_path$/, '')}_original_path` as 'logo_original_path' | 'favicon_original_path' | 'og_image_original_path';
+
   const fileValue = formData.get('file');
   const file = fileValue instanceof File && fileValue.size > 0 ? fileValue : null;
   if (file && !ACCEPTED_IMAGE_TYPES.includes(file.type)) return { success: false, message: 'Неподдерживаемый формат. Разрешены JPEG, PNG, WebP.' };
   if (file && file.size > MAX_IMAGE_SIZE_BYTES) return { success: false, message: 'Файл превышает 4 МБ.' };
 
   const supabase = await createClient();
-  const { data: current, error: currentError } = await supabase.from('site_settings').select(field).eq('id', 1).maybeSingle();
+  const { data: current, error: currentError } = await supabase.from('site_settings').select(`${field}, ${originalField}`).eq('id', 1).maybeSingle();
   if (currentError) return { success: false, message: actionError('Не удалось прочитать текущую настройку.', currentError) };
 
-  const oldPath = (current as Record<string, string | null> | null)?.[field] ?? null;
+  const record = current as Record<string, string | null> | null;
+  const oldPath = record?.[field] ?? null;
+  const oldOriginalPath = record?.[originalField] ?? null;
   let nextPath = oldPath;
+  let nextOriginalPath = oldOriginalPath;
   let uploadedPath: string | null = null;
 
   const mediaPath = formData.get('file_media_path');
   const pickedFromLibrary = typeof mediaPath === 'string' && mediaPath.trim().length > 0;
+  // Загружен браузером напрямую в Storage, в обход тела этого экшена — см.
+  // SingleImageField.uploadOriginalDirect.
+  const submittedOriginalPath = formData.get(`file_original_path`);
 
   if (file) {
     const ext = file.name.split('.').pop()?.toLowerCase() || 'webp';
@@ -82,23 +95,44 @@ export async function saveSiteAsset(
     if (uploadError) return { success: false, message: actionError('Не удалось загрузить изображение.', uploadError) };
     nextPath = path;
     uploadedPath = path;
+    // Если клиент по какой-то причине не успел/не смог загрузить оригинал
+    // (см. originalUploadError в SingleImageField), честно не выдумываем
+    // его — nextOriginalPath останется null, а не будет указывать на чужой
+    // файл.
+    nextOriginalPath = typeof submittedOriginalPath === 'string' && submittedOriginalPath.trim().length > 0 ? submittedOriginalPath : null;
   } else if (pickedFromLibrary) {
     // Указывает на уже существующий файл в 'site' bucket — без повторной
     // загрузки. Старый файл ниже НЕ удаляем: он мог быть выбран из
     // медиатеки и использоваться где-то ещё, надёжно это знает только сама
     // медиатека (проверка перед её собственным удалением).
     nextPath = mediaPath as string;
+    // У файла из медиатеки нет отдельного оригинала — используем тот же
+    // путь (тот же компромисс, что и в WorkImageEditor.pickFromLibrary),
+    // если только пользователь не обрезал его перед сохранением — тогда
+    // submittedOriginalPath уже указывает именно на него.
+    nextOriginalPath = typeof submittedOriginalPath === 'string' && submittedOriginalPath.trim().length > 0 ? submittedOriginalPath : (mediaPath as string);
   } else if (formData.get('file_remove') === '1') {
     nextPath = null;
+    nextOriginalPath = null;
   }
 
-  const { error: updateError } = await supabase.from('site_settings').update({ [field]: nextPath }).eq('id', 1);
+  const { error: updateError } = await supabase.from('site_settings').update({ [field]: nextPath, [originalField]: nextOriginalPath }).eq('id', 1);
   if (updateError) {
     if (uploadedPath) await supabase.storage.from('site').remove([uploadedPath]);
     return { success: false, message: actionError('Не удалось сохранить настройку.', updateError) };
   }
 
-  if (oldPath && oldPath !== nextPath && !pickedFromLibrary) await supabase.storage.from('site').remove([oldPath]);
+  if (oldPath && oldPath !== nextPath && !pickedFromLibrary) {
+    const usage = await getMediaAssetUsage('site', oldPath);
+    if (!usage.used) await supabase.storage.from('site').remove([oldPath]);
+  }
+  if (oldOriginalPath && oldOriginalPath !== nextOriginalPath && oldOriginalPath !== oldPath) {
+    // getMediaAssetUsage проверяет и *_original_path колонки (см. media.ts) —
+    // не удаляем оригинал, если он всё ещё где-то используется как основной
+    // путь (например, был выбран из медиатеки без отдельного оригинала).
+    const usage = await getMediaAssetUsage('site', oldOriginalPath);
+    if (!usage.used) await supabase.storage.from('site').remove([oldOriginalPath]);
+  }
   revalidatePath('/', 'layout'); revalidatePath('/admin/settings');
   return { success: true, message: file ? 'Изображение сохранено' : nextPath ? 'Настройка сохранена' : 'Изображение удалено' };
 }

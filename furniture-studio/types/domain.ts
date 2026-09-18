@@ -67,6 +67,10 @@ export interface HeroContent {
   secondaryCtaLabel: string;
   secondaryCtaHref: string;
   imagePath: string | null;
+  // Несжатый оригинал Hero-картинки — см. imagePath. Хранится тут же, в
+  // content_json, а не отдельной колонкой (как у site_settings/categories),
+  // потому что вся секция и так гибкая jsonb-структура.
+  imageOriginalPath: string | null;
 }
 
 export interface ProcessStep {

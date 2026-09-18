@@ -86,19 +86,35 @@ export async function getMediaAssetUsage(bucket: MediaBucket, path: string): Pro
   const locations: string[] = [];
 
   if (bucket === 'works') {
+    // storage_path — «рабочая» версия, original_path — несжатый исходник
+    // (см. 0008_work_image_original.sql). Раньше тут проверялся только
+    // storage_path: original_path-файл выглядел в Медиатеке "неиспользуемым"
+    // и его можно было случайно удалить вручную, хотя редактор кадрирования
+    // на него ссылается — тот же класс проблемы, что и у логотипа/категории
+    // ниже, просто для фото работ уже существовавший.
     const { count: imageCount } = await supabase.from('work_images').select('id', { count: 'exact', head: true }).eq('storage_path', path);
     if (imageCount) locations.push(`фото работ (${imageCount})`);
+    const { count: imageOriginalCount } = await supabase.from('work_images').select('id', { count: 'exact', head: true }).eq('original_path', path);
+    if (imageOriginalCount) locations.push(`оригинал фото работ (${imageOriginalCount})`);
 
     const { count: categoryCount } = await supabase.from('categories').select('id', { count: 'exact', head: true }).eq('image_path', path);
     if (categoryCount) locations.push('обложка категории');
+    const { count: categoryOriginalCount } = await supabase.from('categories').select('id', { count: 'exact', head: true }).eq('image_original_path', path);
+    if (categoryOriginalCount) locations.push('оригинал обложки категории');
   }
 
   if (bucket === 'site') {
-    const { data: settings } = await supabase.from('site_settings').select('logo_path, favicon_path, og_image_path').maybeSingle();
+    const { data: settings } = await supabase
+      .from('site_settings')
+      .select('logo_path, logo_original_path, favicon_path, favicon_original_path, og_image_path, og_image_original_path')
+      .maybeSingle();
     if (settings) {
       if (settings.logo_path === path) locations.push('логотип сайта');
+      if (settings.logo_original_path === path) locations.push('оригинал логотипа сайта');
       if (settings.favicon_path === path) locations.push('favicon');
+      if (settings.favicon_original_path === path) locations.push('оригинал favicon');
       if (settings.og_image_path === path) locations.push('OG-картинка');
+      if (settings.og_image_original_path === path) locations.push('оригинал OG-картинки');
     }
   }
 

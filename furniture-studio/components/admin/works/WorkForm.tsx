@@ -6,7 +6,6 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { useFormState, useFormStatus } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/Input';
-import { Textarea } from '@/components/ui/Textarea';
 import { Select } from '@/components/ui/Select';
 import { FormStatus } from '@/components/ui/FormStatus';
 import { ConfirmDialog } from '@/components/admin/shared/ConfirmDialog';
@@ -14,6 +13,7 @@ import { slugify } from '@/lib/utils/slug';
 import { deleteWork, detachWorkFromGroup, attachWorkToGroup, moveWorkToGroup, type ActionResult } from '@/lib/actions/works';
 import type { Category, WorkWithUrls } from '@/types/domain';
 import { WorkImageEditor } from './WorkImageEditor';
+import { CategoriesPopover } from './CategoriesPopover';
 
 const DEFAULT_SWATCH_HEX = '#8a7b6c';
 
@@ -434,6 +434,18 @@ export function WorkForm({ categories, initialData, action, submitLabel, redirec
   // Дополнительные категории (галочки, помимо основной category_id выше) —
   // см. work_categories / 0007_work_categories.sql.
   const [extraCategoryIds, setExtraCategoryIds] = useState<string[]>(initialData?.extraCategoryIds ?? []);
+  // Локальная копия списка категорий: попап выбора категорий (см.
+  // CategoriesPopover) умеет создавать новую категорию инлайн, не уходя со
+  // страницы работы — сразу после создания она должна появиться в списке,
+  // не дожидаясь перезагрузки/ревалидации всей страницы.
+  const [localCategories, setLocalCategories] = useState(categories);
+  // Второстепенные настройки (показ на главной, порядок) — раньше висели
+  // отдельным блоком прямо в основном контенте; убраны в компактное меню
+  // «⋯» у панели сверху, чтобы не отвлекать от структуры, повторяющей
+  // публичную страницу работы (см. пункт 16 в обсуждении редизайна).
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef<HTMLDivElement>(null);
+  const [categoryMissing, setCategoryMissing] = useState(false);
   const [priceMode, setPriceMode] = useState(initialData?.price === 'По договорённости' || !initialData?.price ? 'negotiable' : 'fixed');
   const [specs, setSpecs] = useState<Array<{ key: string; value: string }>>(initialData?.specs ? Object.entries(initialData.specs).map(([key, value]) => ({ key, value })) : [{ key: '', value: '' }]);
   const [colorName, setColorName] = useState(initialData?.color_name ?? '');
@@ -469,6 +481,7 @@ export function WorkForm({ categories, initialData, action, submitLabel, redirec
   function handleCategoryIdChange(nextId: string) {
     setCategoryId(nextId);
     setExtraCategoryIds((ids) => ids.filter((id) => id !== nextId));
+    if (nextId) setCategoryMissing(false);
   }
 
   function toggleExtraCategory(id: string) {
@@ -493,6 +506,17 @@ export function WorkForm({ categories, initialData, action, submitLabel, redirec
   }, [state, redirectToDetailOnSuccess, router]);
 
   useEffect(() => {
+    if (!moreOpen) return;
+    function onPointerDown(event: PointerEvent) {
+      if (moreRef.current && !moreRef.current.contains(event.target as Node)) setMoreOpen(false);
+    }
+    function onKeyDown(event: KeyboardEvent) { if (event.key === 'Escape') setMoreOpen(false); }
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => { document.removeEventListener('pointerdown', onPointerDown); document.removeEventListener('keydown', onKeyDown); };
+  }, [moreOpen]);
+
+  useEffect(() => {
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
       if (!dirty) return;
       event.preventDefault();
@@ -510,148 +534,187 @@ export function WorkForm({ categories, initialData, action, submitLabel, redirec
         // Подстраховка на случай неявной отправки формы (Enter в текстовом
         // поле): даже если по какой-то причине кнопка не была задизейблена,
         // не даём уйти в Server Action, пока фото ещё грузятся.
-        if (imagesUploading) event.preventDefault();
+        if (imagesUploading) { event.preventDefault(); return; }
+        // category_id теперь скрытое поле (управляется попапом категорий, а
+        // не <select required>) — required на input[type=hidden] браузеры
+        // могут просто игнорировать (или того хуже, заблокировать сабмит без
+        // видимой подсказки, где именно проблема). Проверяем сами и, если
+        // категория не выбрана, не уходим на сервер — сервер всё равно бы
+        // отклонил с тем же сообщением, но только после round-trip.
+        if (!categoryId) { event.preventDefault(); setCategoryMissing(true); return; }
       }}
       className="pb-24"
     >
       <input type="hidden" name="group_id" value={groupId ?? ''} />
 
-      <div className="mb-5 flex flex-col gap-4 border-b border-ink/10 pb-5 lg:flex-row lg:items-end lg:justify-between">
-        <div className="min-w-0">
-          <div className="flex items-center gap-3 text-[10px] uppercase tracking-[0.14em] text-ink/35">
-            <Link href="/admin/works" className="hover:text-ink">Работы</Link><span>/</span><span>Редактирование</span>
-          </div>
-          <div className="mt-2 flex flex-wrap items-center gap-3">
-            <h1 className="truncate text-2xl tracking-[-0.025em] text-ink sm:text-3xl">{title || 'Новая работа'}</h1>
-            <StatusPill published={published} />
-          </div>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-ink/10 pb-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <Link href="/admin/works" className="shrink-0 text-[11px] uppercase tracking-[0.12em] text-ink/40 hover:text-ink">← Работы</Link>
+          <span className="hidden shrink-0 text-ink/15 sm:inline">/</span>
+          <span className="hidden truncate text-sm text-ink/60 sm:inline">{title || 'Новая работа'}</span>
+          <StatusPill published={published} />
         </div>
-        <div className="flex items-center gap-2">
-          {initialData?.slug && <Link href={`/works/${initialData.slug}`} target="_blank" className="hidden h-11 items-center border border-ink/10 px-4 text-[9px] uppercase tracking-[0.14em] text-ink/55 transition hover:border-ink/25 hover:text-ink sm:inline-flex">Предпросмотр ↗</Link>}
-        </div>
-      </div>
-
-      <div className="mb-5 flex flex-wrap items-center gap-x-7 gap-y-3 border border-ink/10 bg-surface px-4 py-3">
-        <label className="flex items-center gap-2.5 text-sm text-ink/75">
-          <input type="checkbox" name="is_featured" defaultChecked={initialData?.is_featured} className="h-4 w-4 accent-[rgb(var(--color-ink))]" />
-          Показывать на главной
-        </label>
-        <div className="flex items-center gap-2">
-          <label htmlFor="sort_order" className="text-[10px] uppercase tracking-[0.12em] text-ink/40">Сортировка</label>
-          <input id="sort_order" name="sort_order" type="number" defaultValue={initialData?.sort_order ?? 0} className="h-9 w-20 border border-ink/15 bg-transparent px-2.5 text-sm text-ink focus:border-ink/40" />
-        </div>
-      </div>
-
-      <VariantBar categories={categories} currentId={initialData?.id} currentTitle={title} currentColorName={colorName} currentColorHex={colorHex} siblings={colorVariants} groupId={effectiveGroupId} categoryId={categoryId} extraCategoryIds={extraCategoryIds} attachCandidates={attachCandidates} />
-
-      <div className="mt-5 space-y-8">
-        <section>
-          <div className="mb-4 flex items-end justify-between gap-4">
-            <div><p className="eyebrow">01 / Галерея</p><h2 className="mt-1 text-lg text-ink">Фотографии работы</h2></div>
-            <span className="hidden text-[10px] text-ink/35 sm:block">Обложка · порядок · кадрирование</span>
-          </div>
-          {heroImage && (
-            <div className="relative mb-2 aspect-[16/8] overflow-hidden bg-surface">
-              <Image src={heroImage} alt={initialData?.title ?? ''} fill sizes="(min-width:1280px) 70vw, 100vw" className="object-cover" priority />
-              <div className="absolute inset-x-0 bottom-0 flex items-end justify-between bg-gradient-to-t from-black/55 to-transparent p-4 pt-12 text-white">
-                <div><span className="text-[9px] uppercase tracking-[0.15em] text-white/65">Обложка проекта</span><p className="mt-1 text-sm">{title || 'Изображение работы'}</p></div>
-                <span className="border border-white/20 bg-black/25 px-2 py-1 text-[9px]">{initialData?.images?.length ?? 0} фото</span>
+        <div className="flex shrink-0 items-center gap-2">
+          {initialData?.slug && <Link href={`/works/${initialData.slug}`} target="_blank" className="hidden h-10 items-center border border-ink/10 px-3.5 text-[10px] uppercase tracking-[0.12em] text-ink/55 transition hover:border-ink/25 hover:text-ink sm:inline-flex">Предпросмотр ↗</Link>}
+          <div ref={moreRef} className="relative">
+            <button type="button" onClick={() => setMoreOpen((v) => !v)} aria-expanded={moreOpen} aria-label="Дополнительные настройки" className="flex h-10 w-10 items-center justify-center border border-ink/10 text-ink/50 hover:border-ink/25 hover:text-ink">⋯</button>
+            {moreOpen && (
+              <div className="absolute right-0 top-full z-40 mt-2 w-64 border border-ink/15 bg-surface p-3 shadow-2xl">
+                <p className="mb-2 text-[10px] uppercase tracking-[0.12em] text-ink/35">Дополнительные настройки</p>
+                <label className="flex items-center gap-2.5 py-1.5 text-sm text-ink/75">
+                  <input type="checkbox" name="is_featured" defaultChecked={initialData?.is_featured} className="h-4 w-4 accent-[rgb(var(--color-ink))]" />
+                  Показывать на главной
+                </label>
+                <div className="flex items-center justify-between gap-2 py-1.5">
+                  <label htmlFor="sort_order" className="text-sm text-ink/75">Порядок сортировки</label>
+                  <input id="sort_order" name="sort_order" type="number" defaultValue={initialData?.sort_order ?? 0} className="h-9 w-16 border border-ink/15 bg-transparent px-2 text-sm text-ink focus:border-ink/40" />
+                </div>
+                <div className="mt-2 border-t border-ink/10 pt-2">
+                  <Select name="status" label="Статус" defaultValue={initialData?.status ?? 'published'}>
+                    <option value="published">Опубликовано</option><option value="draft">Черновик</option>
+                  </Select>
+                </div>
               </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Дальше структура намеренно повторяет публичную страницу работы
+          (app/(public)/works/[slug]/page.tsx): галерея слева, карточка с
+          названием/категорией/цветом/ценой/описанием справа — вместо
+          пронумерованных секций классической CMS-формы. Все поля — это
+          обычные input/textarea, попадающие в ту же FormData, что и раньше;
+          изменилась только раскладка и стилизация. */}
+      <div className="grid gap-x-12 gap-y-10 lg:grid-cols-[minmax(0,1.45fr)_minmax(320px,1.05fr)]">
+        <div className="order-1 min-w-0">
+          <p className="eyebrow mb-3">фотографии</p>
+          {heroImage && (
+            <div className="relative mb-2 aspect-[4/3] overflow-hidden bg-surface">
+              <Image src={heroImage} alt={initialData?.title ?? ''} fill sizes="(min-width:1024px) 60vw, 100vw" className="object-cover" priority />
             </div>
           )}
           <WorkImageEditor key={saveVersion} images={initialData?.images ?? []} coverImageId={initialData?.cover_image_id ?? null} workId={initialData?.id ?? null} onBusyChange={setImagesUploading} onDirty={() => setDirty(true)} />
-        </section>
+        </div>
 
-        <section className="border-t border-ink/10 pt-7">
-          <div className="mb-5"><p className="eyebrow">02 / Контент</p><h2 className="mt-1 text-lg text-ink">Основная информация</h2></div>
-          <div className="grid gap-5 sm:grid-cols-2">
-            <Input name="title" label="Название" required value={title} onChange={(e) => { setTitle(e.target.value); if (!slugTouched) setSlug(slugify(e.target.value)); }} />
-            <Input name="slug" label="URL / slug" required value={slug} onChange={(e) => { const value = e.target.value; setSlug(value); setSlugTouched(value.trim() !== ''); }} />
+        <div className="order-2 min-w-0">
+          <p className="eyebrow">проект</p>
+          <input
+            name="title"
+            required
+            value={title}
+            onChange={(e) => { setTitle(e.target.value); if (!slugTouched) setSlug(slugify(e.target.value)); }}
+            placeholder="Название работы"
+            aria-label="Название работы"
+            className="display-title mt-3 w-full border-0 bg-transparent p-0 text-ink outline-none placeholder:text-ink/25 focus:outline-none"
+            style={{ fontSize: 'clamp(1.9rem, 3vw, 2.8rem)' }}
+          />
+
+          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+            <CategoriesPopover
+              categories={localCategories}
+              categoryId={categoryId}
+              extraCategoryIds={extraCategoryIds}
+              onPrimaryChange={handleCategoryIdChange}
+              onToggleExtra={toggleExtraCategory}
+              onCategoryCreated={(category) => setLocalCategories((items) => [...items, category])}
+            />
           </div>
-          <div className="mt-5 grid gap-5 sm:grid-cols-2">
-            <Select name="category_id" label="Категория" required value={categoryId} onChange={(e) => handleCategoryIdChange(e.target.value)}>
-              <option value="" disabled>Выберите категорию</option>
-              {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
-            </Select>
-            <Select name="status" label="Статус" defaultValue={initialData?.status ?? 'published'}>
-              <option value="published">Опубликовано</option><option value="draft">Черновик</option>
-            </Select>
+          {/* Скрытые поля — попап управляет только React-состоянием, в
+              FormData категории попадают так же, как раньше от <select>/чекбоксов. */}
+          <input type="hidden" name="category_id" value={categoryId} />
+          {extraCategoryIds.map((id) => <input key={id} type="hidden" name="category_ids" value={id} />)}
+          {categoryMissing && !categoryId && <p role="alert" className="mt-1.5 text-xs text-danger">Выберите категорию — без неё работу нельзя сохранить.</p>}
+
+          <div className="mt-4 flex items-center gap-2 text-xs text-ink/35">
+            <span>/works/</span>
+            <input
+              name="slug"
+              required
+              value={slug}
+              onChange={(e) => { const value = e.target.value; setSlug(value); setSlugTouched(value.trim() !== ''); }}
+              aria-label="URL / slug"
+              className="min-w-0 flex-1 border-0 border-b border-dashed border-ink/15 bg-transparent p-0 text-ink/60 outline-none focus:border-ink/40"
+            />
           </div>
-          {categories.length > 1 && (
-            <div className="relative mt-5" ref={(node) => { if (node) { /* anchor only */ } }}>
-              <div className="flex flex-wrap items-center gap-2">
-                <details className="group relative">
-                  <summary className="flex h-10 cursor-pointer list-none items-center gap-2 border border-ink/15 px-3 text-[10px] uppercase tracking-[0.12em] text-ink/65 hover:border-ink/35 hover:text-ink">
-                    Дополнительные категории
-                    {extraCategoryIds.length > 0 && <span className="text-ink">({extraCategoryIds.length})</span>}
-                    <span className="text-ink/35 transition group-open:rotate-180">⌄</span>
-                  </summary>
-                  <div className="absolute left-0 top-12 z-30 w-72 border border-ink/10 bg-surface p-2 shadow-xl">
-                    {categories.filter((category) => category.id !== categoryId).map((category) => (
-                      <label key={category.id} className="flex cursor-pointer items-center gap-3 px-3 py-2.5 text-sm text-ink/75 hover:bg-ink/5">
-                        <input type="checkbox" name="category_ids" value={category.id} checked={extraCategoryIds.includes(category.id)} onChange={() => toggleExtraCategory(category.id)} className="h-4 w-4 accent-[rgb(var(--color-ink))]" />
-                        {category.name}
-                      </label>
-                    ))}
+
+          <div className="mt-7 border-t border-ink/10 pt-5">
+            <p className="eyebrow mb-3">цвет{colorName ? `: ${colorName}` : ''}</p>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <span className="fabric-swatch" style={{ '--swatch-color': colorHex || DEFAULT_SWATCH_HEX } as React.CSSProperties} title={colorName || 'Цвет'} />
+              <details className="group">
+                <summary className="list-none text-xs text-ink/50 underline decoration-ink/20 underline-offset-4 hover:text-ink [&::-webkit-details-marker]:hidden">Изменить цвет</summary>
+                <div className="mt-3 grid max-w-sm gap-3 sm:grid-cols-[minmax(0,1fr)_120px]">
+                  <Input name="color_name" label="Название цвета" placeholder="Например, Мокко" value={colorName} onChange={(e) => setColorName(e.target.value)} />
+                  <div><label className="mb-2 block text-[11px] uppercase tracking-[0.12em] text-espresso">Оттенок</label><div className="flex h-12 gap-2"><input type="color" name="color_hex" value={colorHex || DEFAULT_SWATCH_HEX} onChange={(e) => setColorHex(e.target.value)} className="h-12 w-12 cursor-pointer border border-ink/10 bg-canvas p-1" /><input type="text" value={colorHex} onChange={(e) => setColorHex(e.target.value)} placeholder="#8a7b6c" className="h-12 min-w-0 flex-1 border border-ink/15 bg-transparent px-2.5 text-xs text-ink placeholder:text-stone focus:border-ink/45" /></div></div>
+                </div>
+                {usedColors.length > 0 && (
+                  <div className="mt-3">
+                    <p className="mb-2 text-[10px] uppercase tracking-[0.12em] text-ink/35">Уже использовались</p>
+                    <div className="flex flex-wrap gap-2">
+                      {usedColors.map((color) => (
+                        <button key={color.hex} type="button" onClick={() => applyUsedColor(color)} title={color.name} className="fabric-swatch h-6 w-6" style={{ '--swatch-color': color.hex } as React.CSSProperties} />
+                      ))}
+                    </div>
                   </div>
-                </details>
-                {extraCategoryIds.map((id) => {
-                  const category = categories.find((item) => item.id === id);
-                  if (!category) return null;
-                  return <span key={id} className="inline-flex h-8 items-center gap-1.5 border border-ink/10 bg-ink/[0.03] pl-2.5 pr-1 text-xs text-ink/65">{category.name}<button type="button" onClick={() => toggleExtraCategory(id)} className="flex h-5 w-5 items-center justify-center text-ink/40 hover:text-ink" aria-label={`Убрать категорию ${category.name}`}>×</button></span>;
-                })}
-              </div>
-              <p className="mt-2 text-xs leading-5 text-ink/35">Основная категория остаётся выбранной выше. Дополнительные сохранятся после сохранения работы.</p>
+                )}
+                {isPartOfGroup && <label className="mt-4 flex items-start gap-2.5 text-xs text-ink/60"><input type="checkbox" name="is_primary" defaultChecked={initialData?.is_primary ?? !colorVariants.length} className="mt-0.5 h-3.5 w-3.5 accent-[rgb(var(--color-ink))]" /><span>Основной вариант — используется по умолчанию в каталоге.</span></label>}
+              </details>
             </div>
-          )}
-          <div className="mt-5"><Textarea name="description" label="Описание" rows={7} defaultValue={initialData?.description ?? ''} /></div>
-        </section>
-
-        <section className="border-t border-ink/10 pt-7">
-          <div className="mb-5"><p className="eyebrow">03 / Цвет</p><h2 className="mt-1 text-lg text-ink">Цветовой вариант</h2></div>
-          <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_190px]">
-            <Input name="color_name" label="Название цвета" placeholder="Например, Мокко" value={colorName} onChange={(e) => setColorName(e.target.value)} />
-            <div><label className="mb-2 block text-[11px] uppercase tracking-[0.12em] text-espresso">Оттенок</label><div className="flex h-12 gap-2"><input type="color" name="color_hex" value={colorHex || DEFAULT_SWATCH_HEX} onChange={(e) => setColorHex(e.target.value)} className="h-12 w-14 cursor-pointer border border-ink/10 bg-canvas p-1" /><input type="text" value={colorHex} onChange={(e) => setColorHex(e.target.value)} placeholder="#8a7b6c" className="h-12 min-w-0 flex-1 border border-ink/15 bg-transparent px-3 text-sm text-ink placeholder:text-stone focus:border-ink/45" /></div></div>
           </div>
-          {usedColors.length > 0 && (
-            <div className="mt-4">
-              <p className="mb-2 text-[10px] uppercase tracking-[0.12em] text-ink/35">Уже использовались — нажмите, чтобы применить</p>
-              <div className="flex flex-wrap gap-2">
-                {usedColors.map((color) => (
-                  <button
-                    key={color.hex}
-                    type="button"
-                    onClick={() => applyUsedColor(color)}
-                    title={color.name}
-                    className={`inline-flex h-8 items-center gap-1.5 border pl-1.5 pr-2.5 text-xs transition ${colorHex.toLowerCase() === color.hex.toLowerCase() ? 'border-ink/40 text-ink' : 'border-ink/10 text-ink/55 hover:border-ink/25 hover:text-ink'}`}
-                  >
-                    <span className="h-4 w-4 shrink-0 rounded-full border border-ink/15" style={{ backgroundColor: color.hex }} />
-                    <span className="max-w-[9rem] truncate">{color.name}</span>
-                  </button>
-                ))}
-              </div>
+
+          <div className="mt-7 border-t border-ink/10 pt-5">
+            <p className="eyebrow mb-3">цена</p>
+            <div className="flex flex-wrap items-center gap-4 text-sm">
+              <label className="flex cursor-pointer items-center gap-2 text-ink/70"><input type="radio" name="price_mode_picker" checked={priceMode === 'negotiable'} onChange={() => setPriceMode('negotiable')} className="accent-[rgb(var(--color-ink))]" /> По договорённости</label>
+              <label className="flex cursor-pointer items-center gap-2 text-ink/70"><input type="radio" name="price_mode_picker" checked={priceMode === 'fixed'} onChange={() => setPriceMode('fixed')} className="accent-[rgb(var(--color-ink))]" /> Указать цену</label>
             </div>
-          )}
-          {isPartOfGroup && <label className="mt-5 flex items-start gap-3 border-t border-ink/10 pt-5 text-sm text-ink/75"><input type="checkbox" name="is_primary" defaultChecked={initialData?.is_primary ?? !colorVariants.length} className="mt-0.5 h-4 w-4 accent-[rgb(var(--color-ink))]" /><span><span className="block text-ink">Основной вариант</span><span className="mt-1 block text-xs leading-5 text-ink/40">Используется по умолчанию в каталоге.</span></span></label>}
-        </section>
-
-        <section className="border-t border-ink/10 pt-7">
-          <div className="mb-5"><p className="eyebrow">04 / Стоимость</p><h2 className="mt-1 text-lg text-ink">Цена</h2></div>
-          <div className="grid max-w-xl gap-2 sm:grid-cols-2">
-            <label className={`flex h-12 cursor-pointer items-center gap-3 border px-4 text-sm transition ${priceMode === 'fixed' ? 'border-ink/30 bg-ink/[0.04] text-ink' : 'border-ink/10 text-ink/55'}`}><input type="radio" name="price_mode_picker" checked={priceMode === 'fixed'} onChange={() => setPriceMode('fixed')} className="accent-[rgb(var(--color-ink))]" /> Указать цену</label>
-            <label className={`flex h-12 cursor-pointer items-center gap-3 border px-4 text-sm transition ${priceMode === 'negotiable' ? 'border-ink/30 bg-ink/[0.04] text-ink' : 'border-ink/10 text-ink/55'}`}><input type="radio" name="price_mode_picker" checked={priceMode === 'negotiable'} onChange={() => setPriceMode('negotiable')} className="accent-[rgb(var(--color-ink))]" /> По договорённости</label>
+            {priceMode === 'fixed' && (
+              <input
+                name="price"
+                placeholder="125 000 ₽"
+                defaultValue={initialData?.price && initialData.price !== 'По договорённости' ? initialData.price : ''}
+                aria-label="Цена"
+                className="mt-3 w-48 border-0 border-b border-ink/15 bg-transparent p-0 pb-1 text-lg text-ink outline-none placeholder:text-ink/25 focus:border-ink/40"
+              />
+            )}
+            <input type="hidden" name="price_mode" value={priceMode} />
           </div>
-          <div className="mt-4 max-w-sm"><Input name="price" label="Цена" placeholder="125 000 ₽" defaultValue={priceMode === 'fixed' && initialData?.price && initialData.price !== 'По договорённости' ? initialData.price : ''} disabled={priceMode !== 'fixed'} /></div>
-          <input type="hidden" name="price_mode" value={priceMode} />
-        </section>
 
-        <section className="border-t border-ink/10 pt-7">
-          <div className="mb-5"><p className="eyebrow">05 / Характеристики</p><h2 className="mt-1 text-lg text-ink">Параметры проекта</h2></div>
-          <div className="space-y-2">
-            {specs.map((spec, index) => <div key={index} className="grid gap-2 sm:grid-cols-[minmax(0,.7fr)_minmax(0,1.3fr)_40px]"><input name="spec_key" placeholder="Размеры" value={spec.key} onChange={(e) => setSpecs((items) => items.map((item, i) => i === index ? { ...item, key: e.target.value } : item))} className="h-11 border border-ink/15 bg-transparent px-3 text-sm text-ink placeholder:text-stone focus:border-ink/45" /><input name="spec_value" placeholder="220 × 95 × 85 см" value={spec.value} onChange={(e) => setSpecs((items) => items.map((item, i) => i === index ? { ...item, value: e.target.value } : item))} className="h-11 border border-ink/15 bg-transparent px-3 text-sm text-ink placeholder:text-stone focus:border-ink/45" /><button type="button" onClick={() => setSpecs((items) => items.filter((_, i) => i !== index))} className="h-11 border border-ink/10 text-ink/40 hover:border-ink/25 hover:text-ink" aria-label={`Удалить характеристику ${index + 1}`}>×</button></div>)}
-            <button type="button" onClick={() => setSpecs((items) => [...items, { key: '', value: '' }])} className="pt-2 text-[9px] uppercase tracking-[0.14em] text-ink/50 hover:text-ink">+ Добавить характеристику</button>
+          <div className="mt-7 border-t border-ink/10 pt-5">
+            <p className="eyebrow mb-3">описание</p>
+            <textarea
+              name="description"
+              aria-label="Описание"
+              rows={6}
+              defaultValue={initialData?.description ?? ''}
+              placeholder="Добавьте описание работы"
+              className="w-full resize-y border-0 bg-transparent p-0 text-sm leading-6 text-espresso outline-none placeholder:text-ink/30"
+            />
           </div>
-        </section>
+        </div>
+
+        <div className="order-3 col-span-full">
+          <div className="mb-4 flex items-end justify-between gap-4 border-t border-ink/10 pt-7">
+            <p className="eyebrow">характеристики</p>
+            <button type="button" onClick={() => setSpecs((items) => [...items, { key: '', value: '' }])} className="text-[10px] uppercase tracking-[0.12em] text-ink/50 hover:text-ink">+ Добавить характеристику</button>
+          </div>
+          {specs.length === 0 && <p className="pb-3 text-sm italic text-ink/30">Характеристик пока нет. Добавьте первую.</p>}
+          <dl>
+            {specs.map((spec, index) => (
+              <div key={index} className="group grid grid-cols-[.75fr,1.25fr,28px] items-center gap-3 border-b border-ink/10 py-2.5 sm:grid-cols-[.75fr,1.25fr,28px]">
+                <input name="spec_key" placeholder="Размеры" value={spec.key} onChange={(e) => setSpecs((items) => items.map((item, i) => i === index ? { ...item, key: e.target.value } : item))} className="min-w-0 border-0 bg-transparent p-0 text-[10px] uppercase tracking-[0.14em] text-stone outline-none placeholder:text-stone/50 focus:text-ink" aria-label={`Название характеристики ${index + 1}`} />
+                <input name="spec_value" placeholder="220 × 95 × 85 см" value={spec.value} onChange={(e) => setSpecs((items) => items.map((item, i) => i === index ? { ...item, value: e.target.value } : item))} className="min-w-0 border-0 bg-transparent p-0 text-sm text-ink outline-none placeholder:text-ink/25" aria-label={`Значение характеристики ${index + 1}`} />
+                <button type="button" onClick={() => setSpecs((items) => items.filter((_, i) => i !== index))} className="justify-self-end text-ink/25 opacity-0 transition group-hover:opacity-100 hover:text-danger" aria-label={`Удалить характеристику ${index + 1}`}>×</button>
+              </div>
+            ))}
+          </dl>
+        </div>
+
+        <div className="order-4 col-span-full border-t border-ink/10 pt-7">
+          <p className="eyebrow mb-4">варианты этой модели</p>
+          <VariantBar categories={categories} currentId={initialData?.id} currentTitle={title} currentColorName={colorName} currentColorHex={colorHex} siblings={colorVariants} groupId={effectiveGroupId} categoryId={categoryId} extraCategoryIds={extraCategoryIds} attachCandidates={attachCandidates} />
+        </div>
       </div>
 
       <div className="mt-8 border-t border-ink/10 pt-4">{state && <FormStatus state={{ status: state.success ? 'success' : 'error', message: state.message }} />}{imagesUploading && <p className="mt-2 text-xs text-ink/45">Дождитесь загрузки фотографий, затем нажмите «Сохранить».</p>}{!imagesUploading && dirty && !state?.success && <p className="mt-2 text-xs text-ink/35">Есть несохранённые изменения.</p>}</div>

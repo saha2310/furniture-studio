@@ -1,14 +1,16 @@
 'use client';
 
+import { useState } from 'react';
 import { useFormState, useFormStatus } from 'react-dom';
 import { saveSiteAsset } from '@/lib/actions/settings';
 import { SingleImageField } from '@/components/admin/shared/SingleImageField';
 import { FormStatus } from '@/components/ui/FormStatus';
 
-function SaveImageButton() {
+function SaveImageButton({ busy }: { busy: boolean }) {
   const { pending } = useFormStatus();
+  const disabled = pending || busy;
   return (
-    <button type="submit" disabled={pending} aria-busy={pending} className="group relative overflow-hidden bg-ink px-4 py-3 text-[10px] uppercase tracking-[0.12em] text-canvas transition-all duration-200 hover:bg-espresso active:scale-[0.98] disabled:cursor-wait disabled:opacity-80">
+    <button type="submit" disabled={disabled} aria-busy={pending} className="group relative overflow-hidden bg-ink px-4 py-3 text-[10px] uppercase tracking-[0.12em] text-canvas transition-all duration-200 hover:bg-espresso active:scale-[0.98] disabled:cursor-wait disabled:opacity-80">
       <span className="inline-flex items-center gap-2">
         {pending && <span aria-hidden="true" className="h-3 w-3 animate-spin rounded-full border border-canvas/30 border-t-canvas" />}
         <span>{pending ? 'Сохраняем…' : 'Сохранить изображение'}</span>
@@ -18,18 +20,23 @@ function SaveImageButton() {
   );
 }
 
-export function AssetUploadForm({ field, label, currentPath, help }: {
+export function AssetUploadForm({ field, label, currentPath, currentOriginalPath, help }: {
   field: 'logo_path' | 'favicon_path' | 'og_image_path';
   label: string;
   currentPath: string | null;
+  currentOriginalPath?: string | null;
   help: string;
 }) {
   const [state, formAction] = useFormState(saveSiteAsset.bind(null, field), null);
+  // Пока «сырой» оригинал ещё грузится в Storage напрямую из браузера (см.
+  // SingleImageField), блокируем сохранение — иначе форма может уйти раньше,
+  // чем путь к оригиналу будет готов, и скрытое поле уйдёт пустым.
+  const [imageBusy, setImageBusy] = useState(false);
   return (
     <form action={formAction} className="flex flex-col gap-4 border border-ink/10 bg-surface p-4">
-      <SingleImageField fieldName="file" existingPath={currentPath} bucket="site" label={label} help={help} cropRatio={field === 'favicon_path' ? 1 : 1.91} compact />
+      <SingleImageField fieldName="file" existingPath={currentPath} existingOriginalPath={currentOriginalPath} bucket="site" label={label} help={help} cropRatio={field === 'favicon_path' ? 1 : 1.91} compact onBusyChange={setImageBusy} />
       <div className="flex items-center gap-3 border-t border-ink/10 pt-4">
-        <SaveImageButton />
+        <SaveImageButton busy={imageBusy} />
         {state && <FormStatus state={{ status: state.success ? 'success' : 'error', message: state.message }} />}
       </div>
     </form>

@@ -8,6 +8,7 @@ export const heroContentSchema = z.object({
   secondaryCtaLabel: z.string().trim().min(1).max(60),
   secondaryCtaHref: z.string().trim().min(1).max(200),
   imagePath: z.string().nullable(),
+  imageOriginalPath: z.string().nullable(),
 });
 
 export const processStepSchema = z.object({
