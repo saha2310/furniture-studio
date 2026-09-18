@@ -430,6 +430,12 @@ export async function getUsedColorsAdmin(): Promise<Array<{ name: string; hex: s
 
 export async function getAllWorkSlugs(): Promise<string[]> {
   const supabase = createStaticClient();
-  const { data } = await supabase.from('works').select('slug').eq('status', 'published');
+  const { data, error } = await supabase.from('works').select('slug').eq('status', 'published');
+  if (error) {
+    // Раньше ошибка здесь проглатывалась молча — сборка просто получала
+    // пустой список (0 статических страниц работ) без единого слова в логе.
+    console.error('getAllWorkSlugs failed', error.message);
+    throw new Error(`generateStaticParams: не удалось получить список работ из Supabase — ${error.message}`);
+  }
   return (data ?? []).map((w) => w.slug);
 }
