@@ -6,7 +6,7 @@ import type { Category, WorkColorVariant, WorkWithUrls, WorkWithVariants } from 
 
 const WORK_SELECT = `
   *,
-  category:categories(*),
+  category:categories!works_category_id_fkey(*),
   images:work_images!work_images_work_id_fkey(*)
 `;
 
