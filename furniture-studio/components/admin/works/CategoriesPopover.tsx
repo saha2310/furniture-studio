@@ -78,13 +78,13 @@ export function CategoriesPopover({
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="dialog"
-        className="group inline-flex items-center gap-1.5 text-left text-sm text-espresso hover:text-ink"
+        className="group inline-flex items-center gap-1.5 border-b border-dashed border-ink/25 pb-0.5 text-left text-sm text-espresso transition hover:border-ink/45 hover:text-ink"
       >
         <span>
           {primary ? primary.name : <span className="text-danger/70">Категория не выбрана</span>}
           {extra.length > 0 && <span className="text-ink/35"> · {extra.map((c) => c.name).join(' · ')}</span>}
         </span>
-        <span className="text-[11px] text-ink/25 opacity-0 transition group-hover:opacity-100" aria-hidden="true">✎</span>
+        <span className="text-[11px] text-ink/45 transition group-hover:text-ink/80" aria-hidden="true">✎</span>
       </button>
 
       {open && (

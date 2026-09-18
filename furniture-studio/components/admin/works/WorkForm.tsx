@@ -599,16 +599,19 @@ export function WorkForm({ categories, initialData, action, submitLabel, redirec
 
         <div className="order-2 min-w-0">
           <p className="eyebrow">проект</p>
-          <input
-            name="title"
-            required
-            value={title}
-            onChange={(e) => { setTitle(e.target.value); if (!slugTouched) setSlug(slugify(e.target.value)); }}
-            placeholder="Название работы"
-            aria-label="Название работы"
-            className="display-title mt-3 w-full border-0 bg-transparent p-0 text-ink outline-none placeholder:text-ink/25 focus:outline-none"
-            style={{ fontSize: 'clamp(1.9rem, 3vw, 2.8rem)' }}
-          />
+          <div className="group relative mt-3">
+            <input
+              name="title"
+              required
+              value={title}
+              onChange={(e) => { setTitle(e.target.value); if (!slugTouched) setSlug(slugify(e.target.value)); }}
+              placeholder="Название работы"
+              aria-label="Название работы"
+              className="display-title w-full border-0 border-b border-dashed border-ink/15 bg-transparent p-0 pb-1 pr-7 text-ink outline-none transition placeholder:text-ink/25 focus:border-ink/40 focus:outline-none"
+              style={{ fontSize: 'clamp(1.9rem, 3vw, 2.8rem)' }}
+            />
+            <span className="pointer-events-none absolute bottom-2 right-0 text-sm text-ink/30 transition group-focus-within:text-ink/60" aria-hidden="true">✎</span>
+          </div>
 
           <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
             <CategoriesPopover
@@ -683,14 +686,17 @@ export function WorkForm({ categories, initialData, action, submitLabel, redirec
 
           <div className="mt-7 border-t border-ink/10 pt-5">
             <p className="eyebrow mb-3">описание</p>
-            <textarea
-              name="description"
-              aria-label="Описание"
-              rows={6}
-              defaultValue={initialData?.description ?? ''}
-              placeholder="Добавьте описание работы"
-              className="w-full resize-y border-0 bg-transparent p-0 text-sm leading-6 text-espresso outline-none placeholder:text-ink/30"
-            />
+            <div className="group relative">
+              <textarea
+                name="description"
+                aria-label="Описание"
+                rows={6}
+                defaultValue={initialData?.description ?? ''}
+                placeholder="Добавьте описание работы"
+                className="w-full resize-y border border-dashed border-ink/15 bg-transparent p-3 pr-7 text-sm leading-6 text-espresso outline-none transition focus:border-ink/40 placeholder:text-ink/30"
+              />
+              <span className="pointer-events-none absolute right-2.5 top-2.5 text-xs text-ink/30 transition group-focus-within:text-ink/60" aria-hidden="true">✎</span>
+            </div>
           </div>
         </div>
 

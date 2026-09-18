@@ -20,6 +20,70 @@ interface PendingReplacement { id: string; file: File; url: string; status: Uplo
 
 const MAX_MB = Math.round(MAX_IMAGE_SIZE_BYTES / (1024 * 1024));
 
+// Раньше на каждой фотографии было 4 кнопки (Обложка / Правка / Карточка /
+// Удалить) в один ряд — на узких карточках подписи не помещались и обрезались
+// (см. скриншот админки). Свернули «сделать обложкой» и «карточка товара» в
+// один пункт «Обложка», который по клику открывает маленький попап с двумя
+// вариантами — так остаётся три равнозначные по ширине кнопки в ряд:
+// Удалить / Обложка / Редактировать (правка кадрирования).
+function CoverMenuButton({
+  isCover,
+  onSetCover,
+  onEditCard,
+  hasCardOverride,
+}: {
+  isCover: boolean;
+  onSetCover: () => void;
+  onEditCard: () => void;
+  hasCardOverride: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(event: PointerEvent) {
+      if (rootRef.current && !rootRef.current.contains(event.target as Node)) setOpen(false);
+    }
+    function onKeyDown(event: KeyboardEvent) { if (event.key === 'Escape') setOpen(false); }
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => { document.removeEventListener('pointerdown', onPointerDown); document.removeEventListener('keydown', onKeyDown); };
+  }, [open]);
+
+  return (
+    <div ref={rootRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        className={`w-full bg-surface px-2 py-3 text-[9px] uppercase tracking-[0.11em] transition hover:text-ink ${isCover ? 'text-ink' : 'text-ink/70'}`}
+      >
+        Обложка{hasCardOverride ? ' •' : ''}
+      </button>
+      {open && (
+        <div role="dialog" aria-modal="false" className="absolute bottom-full left-1/2 z-30 mb-1 w-52 -translate-x-1/2 border border-ink/15 bg-surface text-left shadow-2xl">
+          <button
+            type="button"
+            onClick={() => { onSetCover(); setOpen(false); }}
+            className="block w-full px-3 py-2.5 text-left text-xs text-ink/80 transition hover:bg-ink/5 hover:text-ink"
+          >
+            {isCover ? '✓ Уже обложка' : 'Сделать обложкой'}
+          </button>
+          <button
+            type="button"
+            onClick={() => { onEditCard(); setOpen(false); }}
+            className="block w-full border-t border-ink/10 px-3 py-2.5 text-left text-xs text-ink/80 transition hover:bg-ink/5 hover:text-ink"
+          >
+            Редактировать карточку товара{hasCardOverride ? ' •' : ''}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function WorkImageEditor({
   images,
   coverImageId,
@@ -313,8 +377,8 @@ export function WorkImageEditor({
       </div>
 
       {!workId && <p className="mt-3 text-xs text-ink/45">Добавление из галереи будет доступно после первого сохранения работы.</p>}
-      {libraryError && <p role="alert" className="mt-4 border border-red-300/20 bg-red-300/5 px-3 py-2 text-xs text-red-200">{libraryError}</p>}
-      {error && <p role="alert" className="mt-4 border border-red-300/20 bg-red-300/5 px-3 py-2 text-xs text-red-200">{error}</p>}
+      {libraryError && <p role="alert" className="mt-4 border border-danger/25 bg-danger/5 px-3 py-2 text-xs text-danger">{libraryError}</p>}
+      {error && <p role="alert" className="mt-4 border border-danger/25 bg-danger/5 px-3 py-2 text-xs text-danger">{error}</p>}
       {libraryOpen && <MediaLibraryPicker bucket="works" onClose={() => setLibraryOpen(false)} onSelect={pickFromLibrary} />}
 
       <div
@@ -344,20 +408,18 @@ export function WorkImageEditor({
                   </button>
                 )}
               </div>
-              <div className="grid grid-cols-4 gap-px bg-ink/10">
-                <button type="button" onClick={() => setSelectedCover(image.id)} className="bg-surface px-2 py-3 text-[9px] uppercase tracking-[0.11em] text-ink/70 hover:text-ink">Обложка</button>
-                <button type="button" onClick={() => startExistingEdit(image)} className="bg-surface px-2 py-3 text-[9px] uppercase tracking-[0.11em] text-ink/70 hover:text-ink">Правка</button>
-                <button
-                  type="button"
-                  onClick={() => {
+              <div className="grid grid-cols-3 gap-px bg-ink/10">
+                <button type="button" onClick={() => removeExisting(image.id)} className="bg-surface px-2 py-3 text-[9px] uppercase tracking-[0.11em] text-danger transition hover:bg-danger/10">Удалить</button>
+                <CoverMenuButton
+                  isCover={selectedCover === image.id}
+                  onSetCover={() => setSelectedCover(image.id)}
+                  onEditCard={() => {
                     const override = catalogOverrides[image.id];
                     setCatalogEditor(override ? { ...image, catalog_position_x: override.x, catalog_position_y: override.y, catalog_zoom: override.zoom, catalog_flip_horizontal: override.flip } : image);
                   }}
-                  className={`bg-surface px-2 py-3 text-[9px] uppercase tracking-[0.11em] hover:text-ink ${catalogOverrides[image.id] ? 'text-ink' : 'text-ink/70'}`}
-                >
-                  Карточка{catalogOverrides[image.id] ? ' •' : ''}
-                </button>
-                <button type="button" onClick={() => removeExisting(image.id)} className="bg-surface px-2 py-3 text-[9px] uppercase tracking-[0.11em] text-red-200/80 hover:text-red-100">Удалить</button>
+                  hasCardOverride={!!catalogOverrides[image.id]}
+                />
+                <button type="button" onClick={() => startExistingEdit(image)} className="bg-surface px-2 py-3 text-[9px] uppercase tracking-[0.11em] text-ink/70 hover:text-ink">Редактировать</button>
               </div>
             </div>
           );
@@ -378,9 +440,9 @@ export function WorkImageEditor({
               )}
             </div>
             <div className="grid grid-cols-3 gap-px bg-ink/10">
-              <button type="button" onClick={() => setSelectedCover(image.id)} className="bg-surface px-2 py-3 text-[9px] uppercase tracking-[0.11em] text-ink/70 hover:text-ink">Обложка</button>
-              <button type="button" onClick={() => startNewEdit(image)} className="bg-surface px-2 py-3 text-[9px] uppercase tracking-[0.11em] text-ink/70 hover:text-ink">Правка</button>
-              <button type="button" onClick={() => removeNew(image.id)} className="bg-surface px-2 py-3 text-[9px] uppercase tracking-[0.11em] text-red-200/80 hover:text-red-100">Удалить</button>
+              <button type="button" onClick={() => removeNew(image.id)} className="bg-surface px-2 py-3 text-[9px] uppercase tracking-[0.11em] text-danger transition hover:bg-danger/10">Удалить</button>
+              <button type="button" onClick={() => setSelectedCover(image.id)} className={`bg-surface px-2 py-3 text-[9px] uppercase tracking-[0.11em] hover:text-ink ${selectedCover === image.id ? 'text-ink' : 'text-ink/70'}`}>Обложка</button>
+              <button type="button" onClick={() => startNewEdit(image)} className="bg-surface px-2 py-3 text-[9px] uppercase tracking-[0.11em] text-ink/70 hover:text-ink">Редактировать</button>
             </div>
           </div>
         ))}
