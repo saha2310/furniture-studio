@@ -17,6 +17,19 @@ function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+// Ripple по тапу на иконке — перенесено из juicy_mobile_bottom_navigation.html
+// (setActiveItem). Ссылка всё равно ведёт на новую страницу (preventDefault
+// не вызываем) — ripple просто проигрывает свою часть анимации за то время,
+// что страница успевает смениться, как обычный tap-фидбек в нативных приложениях.
+function spawnNavRipple(event: React.MouseEvent<HTMLAnchorElement>) {
+  const iconWrap = event.currentTarget.querySelector('.mobile-bottom-nav-icon-wrap');
+  if (!iconWrap) return;
+  const ripple = document.createElement('span');
+  ripple.className = 'nav-ripple';
+  iconWrap.appendChild(ripple);
+  setTimeout(() => ripple.remove(), 550);
+}
+
 export function MobileBottomNav() {
   const pathname = usePathname();
   const { count } = useFavorites();
@@ -30,6 +43,7 @@ export function MobileBottomNav() {
             key={item.href}
             href={item.href}
             aria-current={active ? 'page' : undefined}
+            onClick={spawnNavRipple}
             className={`mobile-bottom-nav-item ${active ? 'is-active' : ''}`}
           >
             <span className="mobile-bottom-nav-icon-wrap">

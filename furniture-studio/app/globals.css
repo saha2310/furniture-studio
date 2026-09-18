@@ -486,6 +486,7 @@ select:focus-visible,
   .liquid-glass-button:hover,
   .liquid-glass-filter-button:hover,
   .liquid-glass-icon-button:hover {
+    transform: translateY(-2px);
     border-color: rgba(var(--glass-border) / var(--glass-border-hover-alpha)) !important;
     background:
       linear-gradient(115deg, rgba(var(--glass-shine) / 0.085), rgba(var(--glass-shine) / 0.022) 48%, rgba(var(--glass-shine) / 0.06)),
@@ -497,6 +498,18 @@ select:focus-visible,
       0 10px 28px rgba(0, 0, 0, 0.14);
     -webkit-backdrop-filter: blur(14px) saturate(110%);
     backdrop-filter: blur(14px) saturate(110%);
+  }
+
+  /* «Вжатие» по клику — во всех референсах кнопки чуть уменьшаются при
+     нажатии (scale 0.92–0.98). Быстрая отдельная transition-duration, чтобы
+     не наследовать долгий 650ms из базового правила — иначе клик ощущался
+     бы вязким. */
+  .reference-button:active,
+  .liquid-glass-button:active,
+  .liquid-glass-filter-button:active,
+  .liquid-glass-icon-button:active {
+    transform: translateY(0) scale(0.96);
+    transition-duration: 120ms;
   }
 
   .reference-button:hover::before,
@@ -528,8 +541,51 @@ select:focus-visible,
      Раньше жила Tailwind-классом с вложенными var()/запятой в произвольном
      значении (hover:[border-color:var(--card-accent,rgb(...))]) — вынесено
      в обычный CSS, чтобы не зависеть от парсинга произвольных значений. */
-  .journal-card:hover {
+  .journal-card,
+  .work-card-grid {
+    transition: border-color 300ms ease, transform 400ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 400ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .journal-card:hover,
+  .work-card-grid:hover {
     border-color: var(--card-accent, rgb(var(--color-ink) / 0.25));
+    transform: translateY(-4px);
+    box-shadow: 0 22px 44px -18px rgba(0, 0, 0, 0.22), 0 6px 16px rgba(0, 0, 0, 0.07);
+  }
+
+  /* Зум + лёгкое повышение яркости фото на hover карточки — независимо от
+     администраторского зума/сдвига/отражения фото (--catalog-zoom/--catalog-flip
+     из catalogImageStyle в WorkCard.tsx: тот зум остаётся «базовым», hover
+     умножает его через calc(), а не перезаписывает). */
+  .catalog-image {
+    transform: scale(var(--catalog-zoom, 1)) scaleX(var(--catalog-flip, 1));
+    transition: transform 700ms cubic-bezier(0.16, 1, 0.3, 1), filter 500ms ease;
+  }
+
+  .group:hover .catalog-image {
+    transform: scale(calc(var(--catalog-zoom, 1) * 1.06)) scaleX(var(--catalog-flip, 1));
+    filter: brightness(1.04);
+  }
+
+  /* Подчёркивание у «Быстрый просмотр» на hover, растущее слева направо —
+     перенесено из quick-view-btn::after в code_artifact(3).html. */
+  .quick-view-trigger {
+    position: relative;
+  }
+
+  .quick-view-trigger::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: -2px;
+    width: 0;
+    height: 1px;
+    background: currentColor;
+    transition: width 300ms ease;
+  }
+
+  .quick-view-trigger:hover::after {
+    width: 100%;
   }
 
   /* Крупнее обычного круглого стеклянного значка — специально для стрелок
@@ -570,6 +626,19 @@ select:focus-visible,
 
   .theme-toggle-btn svg {
     transition: transform 450ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  /* Микро-анимация иконки по клику — перенесено из
+     liquid_glass_button_animation(1).html (icon-pulse). Класс ставит сам
+     компонент (ThemeToggle.tsx) на короткое время после клика. */
+  .theme-toggle-icon-pulse {
+    animation: themeTogglePulse 450ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  @keyframes themeTogglePulse {
+    0% { transform: scale(1) rotate(0deg); }
+    50% { transform: scale(0.8) rotate(-30deg); }
+    100% { transform: scale(1) rotate(0deg); }
   }
 
   .liquid-glass-icon-button .favorite-heart {
@@ -701,6 +770,26 @@ select:focus-visible,
       inset 0 1px 0 rgba(var(--glass-shine) / 0.12),
       0 0 16px rgba(var(--color-accent) / 0.22),
       0 6px 18px rgba(0, 0, 0, 0.08);
+  }
+
+  /* Ripple от точки клика на фильтре категорий — перенесено из
+     code_artifact(2).html (CategoryFilter.tsx: spawnFilterRipple).
+     .liquid-glass-filter-button уже держит position:relative + overflow:hidden
+     из общего правила выше — ripple обрежется по форме пилюли сам собой. */
+  .filter-ripple {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(var(--color-accent) / 0.4);
+    transform: scale(0);
+    pointer-events: none;
+    animation: filterRippleEffect 600ms ease-out forwards;
+  }
+
+  @keyframes filterRippleEffect {
+    to {
+      transform: scale(4);
+      opacity: 0;
+    }
   }
 
   .about-teaser-button {
@@ -871,15 +960,21 @@ select:focus-visible,
       letter-spacing: 0.06em;
       text-transform: uppercase;
       color: rgba(var(--glass-text) / 0.58);
-      transition: color 220ms ease, background-color 220ms ease, box-shadow 220ms ease;
+      transition: color 220ms ease, background-color 220ms ease, box-shadow 220ms ease, transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
     }
 
     .mobile-bottom-nav-item.is-active {
       color: rgb(var(--color-accent));
       background: rgba(var(--color-accent) / 0.14);
+      transform: translateY(-2px);
       box-shadow:
         inset 0 1px 0 rgba(var(--glass-shine) / 0.05),
         0 0 14px rgba(var(--color-accent) / 0.22);
+    }
+
+    .mobile-bottom-nav-item:active {
+      transform: scale(0.92);
+      transition-duration: 100ms;
     }
 
     .mobile-bottom-nav-icon-wrap {
@@ -888,6 +983,29 @@ select:focus-visible,
       align-items: center;
       justify-content: center;
       min-height: 23px;
+    }
+
+    /* Ripple по тапу — перенесено из juicy_mobile_bottom_navigation.html
+       (setActiveItem/.nav-ripple). Спан вставляется JS-ом в MobileBottomNav.tsx
+       по клику и сам себя удаляет через 550ms. */
+    .nav-ripple {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 32px;
+      height: 32px;
+      margin: -16px 0 0 -16px;
+      border-radius: 50%;
+      background: currentColor;
+      opacity: 0.25;
+      pointer-events: none;
+      transform: scale(0);
+      animation: navRipple 550ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes navRipple {
+      0% { transform: scale(0.4); opacity: 0.35; }
+      100% { transform: scale(2.2); opacity: 0; }
     }
 
     .mobile-bottom-nav-count {

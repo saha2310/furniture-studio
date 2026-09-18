@@ -101,8 +101,15 @@ export function WorkCard({
   const accentColor = active.colorHex ?? undefined;
   const catalogImageStyle = active.coverImage ? {
     objectPosition: `${active.coverImage.catalog_position_x ?? 50}% ${active.coverImage.catalog_position_y ?? 50}%`,
-    transform: `scale(${active.coverImage.catalog_zoom ?? 1}) scaleX(${active.coverImage.catalog_flip_horizontal ? -1 : 1})`,
-  } : undefined;
+    // Раньше здесь был готовый transform: 'scale(...) scaleX(...)' — это
+    // инлайн-стиль, а инлайн-стиль всегда перебивает любое CSS-правило
+    // (в т.ч. hover), так что зум по наведению на карточку было бы
+    // невозможно добавить поверх админского зума. Вместо этого отдаём
+    // значения через CSS-переменные, а сам transform (с умножением на
+    // hover) считает .catalog-image в globals.css.
+    '--catalog-zoom': active.coverImage.catalog_zoom ?? 1,
+    '--catalog-flip': active.coverImage.catalog_flip_horizontal ? -1 : 1,
+  } as React.CSSProperties : undefined;
 
   if (variant === 'journal') {
     return (
@@ -121,7 +128,7 @@ export function WorkCard({
                     fill
                     priority={priority}
                     sizes="(min-width: 1280px) 33vw, (min-width: 1024px) 45vw, 100vw"
-                    className="object-cover" style={catalogImageStyle}
+                    className="object-cover catalog-image" style={catalogImageStyle}
                   />
                 ) : (
                   <div className="flex h-full items-center justify-center text-sm text-ink/45">Нет фото</div>
@@ -148,7 +155,7 @@ export function WorkCard({
               <button
                 type="button"
                 onClick={() => setPreviewOpen(true)}
-                className="text-[11px] uppercase tracking-[0.12em] text-ink/65 transition hover:text-ink"
+                className="quick-view-trigger text-[11px] uppercase tracking-[0.12em] text-ink/65 transition hover:text-ink"
               >
                 Быстрый просмотр
               </button>
@@ -170,11 +177,14 @@ export function WorkCard({
 
   return (
     <>
-      <article className="group border border-ink/10 bg-surface">
+      <article
+        className="work-card-grid group border border-ink/10 bg-surface"
+        style={{ '--card-accent': accentColor } as React.CSSProperties}
+      >
         <div className="relative">
           <Link href={activeHref} className="block">
             <div className="relative aspect-[4/3] overflow-hidden bg-surface">
-              {activeImage ? <Image src={activeImage.url} alt={activeImage.alt_text || work.title} fill priority={priority} sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" className="object-cover" style={catalogImageStyle} /> : <div className="flex h-full items-center justify-center text-sm text-ink/45">Нет фото</div>}
+              {activeImage ? <Image src={activeImage.url} alt={activeImage.alt_text || work.title} fill priority={priority} sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" className="object-cover catalog-image" style={catalogImageStyle} /> : <div className="flex h-full items-center justify-center text-sm text-ink/45">Нет фото</div>}
               <div className="absolute inset-0 bg-[linear-gradient(to_top,rgb(var(--photo-mist)/0.45),transparent,transparent)]" />
             </div>
           </Link>
@@ -196,7 +206,7 @@ export function WorkCard({
             <button
               type="button"
               onClick={(e) => { e.preventDefault(); setPreviewOpen(true); }}
-              className="text-[11px] uppercase tracking-[0.12em] text-ink/65 transition hover:text-ink"
+              className="quick-view-trigger text-[11px] uppercase tracking-[0.12em] text-ink/65 transition hover:text-ink"
             >
               Быстрый просмотр
             </button>
