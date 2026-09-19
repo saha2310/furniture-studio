@@ -192,7 +192,7 @@ export function WorkGallery({ images, title }: { images: WorkImageWithUrl[]; tit
       <div className="group relative min-w-0 overflow-hidden bg-surface">
         <div className="relative aspect-[3/2] cursor-zoom-in overflow-hidden lg:aspect-[16/10]" onClick={openLightbox}>
           <div className="absolute inset-0 flex" style={{ transform: `translateX(-${trackIndex * 100}%)`, transition: transition ? 'transform 600ms cubic-bezier(.2,.7,.2,1)' : 'none' }} onTransitionEnd={handleTrackEnd}>
-            {slides.map((img, index) => <div className="relative h-full w-full shrink-0 grow-0 basis-full" key={`${img.id}-${index}`}><Image src={img.url} alt={img.alt_text || title} fill priority={index === trackIndex} sizes="(min-width: 1024px) 55vw, 100vw" className="object-cover" /></div>)}
+            {slides.map((img, index) => <div className="relative h-full w-full shrink-0 grow-0 basis-full" key={`${img.id}-${index}`}><Image src={img.url} alt={img.alt_text || title} fill priority={index === trackIndex} sizes="(min-width: 1024px) 55vw, 100vw" quality={90} className="object-cover" /></div>)}
           </div>
         </div>
         {images.length > 1 && (
@@ -216,7 +216,7 @@ export function WorkGallery({ images, title }: { images: WorkImageWithUrl[]; tit
         <div className="liquid-glass-on-image absolute bottom-4 left-4 border border-ink/15 px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-ink/75">{String(activeIndex + 1).padStart(2, '0')} / {String(images.length).padStart(2, '0')}</div>
       </div>
 
-      {images.length > 1 && <div className="mt-3 grid grid-cols-5 gap-px bg-ink/10 sm:grid-cols-6 md:grid-cols-8">{images.map((img, index) => <button type="button" key={img.id} onClick={() => { setActiveIndex(index); setTrackIndex(index + 1); setTransition(true); }} className={`relative aspect-square overflow-hidden bg-surface transition-opacity duration-300 ${index === activeIndex ? 'opacity-100' : 'opacity-40 hover:opacity-80'}`} aria-label={`Открыть фотографию ${index + 1}`}><Image src={img.url} alt="" fill sizes="12vw" className="object-cover" /></button>)}</div>}
+      {images.length > 1 && <div className="mt-3 grid grid-cols-5 gap-px bg-ink/10 sm:grid-cols-6 md:grid-cols-8">{images.map((img, index) => <button type="button" key={img.id} onClick={() => { setActiveIndex(index); setTrackIndex(index + 1); setTransition(true); }} className={`relative aspect-square overflow-hidden bg-surface transition-opacity duration-300 ${index === activeIndex ? 'opacity-100' : 'opacity-40 hover:opacity-80'}`} aria-label={`Открыть фотографию ${index + 1}`}><Image src={img.url} alt="" fill sizes="12vw" quality={90} className="object-cover" /></button>)}</div>}
 
       {lightbox && <div className="fixed inset-0 z-[120] bg-black/80 backdrop-blur-[2px] transition-opacity duration-300" role="dialog" aria-modal="true" aria-label={`Просмотр фотографий: ${title}`}>
         <button type="button" onClick={() => setLightbox(false)} aria-label="Закрыть" className="absolute right-5 top-5 z-30 text-4xl font-light text-white/70 hover:text-white">×</button>

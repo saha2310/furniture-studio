@@ -128,6 +128,7 @@ export function WorkCard({
                     fill
                     priority={priority}
                     sizes="(min-width: 1280px) 33vw, (min-width: 1024px) 45vw, 100vw"
+                    quality={90}
                     className="object-cover catalog-image" style={catalogImageStyle}
                   />
                 ) : (
@@ -184,7 +185,7 @@ export function WorkCard({
         <div className="relative">
           <Link href={activeHref} className="block">
             <div className="relative aspect-[4/3] overflow-hidden bg-surface">
-              {activeImage ? <Image src={activeImage.url} alt={activeImage.alt_text || work.title} fill priority={priority} sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" className="object-cover catalog-image" style={catalogImageStyle} /> : <div className="flex h-full items-center justify-center text-sm text-ink/45">Нет фото</div>}
+              {activeImage ? <Image src={activeImage.url} alt={activeImage.alt_text || work.title} fill priority={priority} sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" quality={90} className="object-cover catalog-image" style={catalogImageStyle} /> : <div className="flex h-full items-center justify-center text-sm text-ink/45">Нет фото</div>}
               <div className="absolute inset-0 bg-[linear-gradient(to_top,rgb(var(--photo-mist)/0.45),transparent,transparent)]" />
             </div>
           </Link>

@@ -41,7 +41,7 @@ export default async function WorkPage({ params }: Props) {
   return (
     <div className="pt-[82px]">
       <section className="relative aspect-[4/3] overflow-hidden border-b border-ink/10 lg:aspect-auto lg:min-h-[calc(100vh-82px)]">
-        {heroImage ? <Image src={heroImage.url} alt={heroImage.alt_text || work.title} fill priority sizes="100vw" className="object-cover" /> : <div className="absolute inset-0 bg-surface" />}
+        {heroImage ? <Image src={heroImage.url} alt={heroImage.alt_text || work.title} fill priority sizes="100vw" quality={90} className="object-cover" /> : <div className="absolute inset-0 bg-surface" />}
         <div className="absolute inset-0 bg-[rgb(var(--photo-mist)/0.45)]" />
         <div className="absolute inset-0 bg-[linear-gradient(to_top,rgb(var(--photo-mist)/0.75),transparent,rgb(var(--photo-mist)/0.25))]" />
         <div className="light-image-content container-studio absolute inset-x-0 bottom-0 z-10 flex flex-col justify-end pb-12 lg:relative lg:min-h-[calc(100vh-82px)] lg:pb-14">

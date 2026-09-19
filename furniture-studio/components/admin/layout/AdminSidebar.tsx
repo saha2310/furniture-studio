@@ -16,6 +16,7 @@ const GROUPS = [
     { href: '/admin/about', label: 'О мастерской' },
   ]},
   { title: 'Система', links: [
+    { href: '/admin/media', label: 'Медиатека' },
     { href: '/admin/settings', label: 'Настройки' },
   ]},
 ];
