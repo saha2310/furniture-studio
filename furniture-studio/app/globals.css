@@ -951,7 +951,7 @@ select:focus-visible,
       flex-direction: column;
       align-items: center;
       justify-content: flex-end;
-      padding: 0 4px 3px;
+      padding: 0 0 3px;
       border-radius: 18px;
       text-decoration: none;
       color: rgba(var(--glass-text) / 0.58);
@@ -967,17 +967,15 @@ select:focus-visible,
       transition: color 300ms ease, transform 350ms cubic-bezier(0.34, 1.56, 0.64, 1), font-weight 300ms ease;
     }
 
-    /* Квадрат иконки нарочно выше самой панели (margin-top уводит его над
-       верхним краем pill) — так все 4 иконки выглядят как приподнятые бейджи,
-       выступающие над баром, а не утопленные внутрь него. */
+    /* Квадрат иконки — вровень с панелью (без выступа над баром). */
     .mobile-bottom-nav-icon-wrap {
       position: relative;
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 38px;
-      height: 38px;
-      margin-top: -18px;
+      width: 35px;
+      height: 35px;
+      margin-top: 0px;
       border-radius: 14px;
       background: rgba(var(--glass-base) / 0.55);
       box-shadow:
