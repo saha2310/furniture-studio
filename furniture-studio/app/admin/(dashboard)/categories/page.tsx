@@ -9,7 +9,7 @@ export default async function AdminCategoriesPage() {
     <div className="max-w-6xl">
       <PageHeader
         title="Категории"
-        description="Диваны, кресла и другие направления. Удалить можно только пустую категорию."
+        description="Диваны, кресла и другие направления. Нажмите на категорию, чтобы изменить её — все правки сохраняются автоматически. Удалить можно только пустую категорию."
       />
       <div className="mt-6">
         <CategoriesManager categories={categories} />
