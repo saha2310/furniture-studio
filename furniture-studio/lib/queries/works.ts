@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createStaticClient } from '@/lib/supabase/static';
 import { requireUser } from '@/lib/actions/auth-guard';
 import { workImageUrl } from '@/lib/utils/image';
-import type { Category, WorkColorVariant, WorkWithUrls, WorkWithVariants } from '@/types/domain';
+import type { Category, CategoryWithChildren, WorkColorVariant, WorkWithUrls, WorkWithVariants } from '@/types/domain';
 
 const WORK_SELECT = `
   *,
@@ -106,7 +106,21 @@ async function categoryMembershipOrFilter(
   supabase: ReturnType<typeof createStaticClient> | Awaited<ReturnType<typeof createClient>>,
   categoryId: string,
 ): Promise<string> {
-  const { data, error } = await supabase.from('work_categories').select('work_id').eq('category_id', categoryId);
+  // Если categoryId — родительская категория с подкатегориями («Диваны»),
+  // «Все диваны» должно включать и работы, помеченные только подкатегорией
+  // («Угловые»), даже если у них не проставлена ещё и родительская категория
+  // отдельно. Иначе «Все диваны» осталась бы пустой, пока не тегировать
+  // каждую работу родителем вручную задним числом.
+  const { data: children, error: childrenError } = await supabase
+    .from('categories')
+    .select('id')
+    .eq('parent_id', categoryId);
+  if (childrenError) {
+    console.error('categoryMembershipOrFilter: children lookup failed', childrenError.message);
+  }
+  const categoryIds = Array.from(new Set([categoryId, ...(children ?? []).map((c) => c.id)]));
+
+  const { data, error } = await supabase.from('work_categories').select('work_id').in('category_id', categoryIds);
   // Раньше ошибка здесь проглатывалась молча: если на конкретном
   // Supabase-проекте не накатана миграция с таблицей work_categories,
   // публичный каталог просто переставал учитывать "дополнительные
@@ -118,7 +132,7 @@ async function categoryMembershipOrFilter(
     console.error('categoryMembershipOrFilter: work_categories query failed (миграция применена?)', error.message);
   }
   const workIds = Array.from(new Set((data ?? []).map((row) => row.work_id)));
-  const parts = [`category_id.eq.${categoryId}`];
+  const parts = [`category_id.in.(${categoryIds.join(',')})`];
   if (workIds.length) parts.push(`id.in.(${workIds.join(',')})`);
   return parts.join(',');
 }
@@ -131,6 +145,25 @@ export async function getCategories(): Promise<Category[]> {
     return [];
   }
   return data ?? [];
+}
+
+// Только категории верхнего уровня (parent_id = null), каждая — со своими
+// подкатегориями. Для плиток «Что мы создаём» на главной: клик по плитке с
+// подкатегориями открывает модалку выбора подвида вместо прямого перехода
+// (см. components/home/CategoryTile.tsx). Категории без подкатегорий
+// ведут на /works?category=... как раньше.
+export async function getTopLevelCategoriesWithChildren(): Promise<CategoryWithChildren[]> {
+  const all = await getCategories();
+  const byParent = new Map<string, Category[]>();
+  for (const row of all) {
+    if (!row.parent_id) continue;
+    const list = byParent.get(row.parent_id) ?? [];
+    list.push(row);
+    byParent.set(row.parent_id, list);
+  }
+  return all
+    .filter((row) => !row.parent_id)
+    .map((row) => ({ ...row, children: byParent.get(row.id) ?? [] }));
 }
 
 

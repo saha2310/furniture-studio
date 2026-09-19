@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { getHomeSections, findSection } from '@/lib/queries/home';
-import { getFeaturedWorks, getCategories } from '@/lib/queries/works';
+import { getFeaturedWorks, getTopLevelCategoriesWithChildren } from '@/lib/queries/works';
 import { getSiteSettings } from '@/lib/queries/site';
 import { Hero } from '@/components/home/Hero';
 import { WhatWeCreate } from '@/components/home/WhatWeCreate';
@@ -23,7 +23,7 @@ export default async function HomePage() {
   const [sections, featuredWorks, categories] = await Promise.all([
     getHomeSections(),
     getFeaturedWorks(4),
-    getCategories(),
+    getTopLevelCategoriesWithChildren(),
   ]);
 
   const hero = findSection(sections, 'hero');
@@ -42,7 +42,15 @@ export default async function HomePage() {
     <>
       {isVisible(hero) && <Hero content={(hero?.content_json as unknown as HeroContent) ?? null} />}
 
-      {isVisible(whatWeCreate) && <WhatWeCreate categories={categories} title={whatWeCreate?.title} />}
+      {/*
+        show_on_home скрывает конкретную плитку с главной, не убирая
+        категорию из каталога /works — поэтому фильтруем здесь, а не в
+        самом getTopLevelCategoriesWithChildren() (тот список нужен целиком
+        в других местах, например для фильтров /works).
+      */}
+      {isVisible(whatWeCreate) && (
+        <WhatWeCreate categories={categories.filter((c) => c.show_on_home)} title={whatWeCreate?.title} />
+      )}
 
       {isVisible(featuredSection) && <FeaturedWorks works={featuredWorks} title={featuredSection?.title} />}
 

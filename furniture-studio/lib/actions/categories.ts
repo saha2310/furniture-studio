@@ -33,18 +33,35 @@ function readSubmittedOriginalPath(formData: FormData): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value : null;
 }
 
+
 export async function createCategory(_prev: ActionResult | null, formData: FormData): Promise<ActionResult> {
   try { await requireUser(); } catch (e) { if (isUnauthorizedError(e)) return { success: false, message: 'Требуется авторизация.' }; throw e; }
 
-  const parsed = categorySchema.safeParse({ name: formData.get('name'), slug: formData.get('slug'), sort_order: formData.get('sort_order') || 0 });
+  const parsed = categorySchema.safeParse({
+    name: formData.get('name'),
+    slug: formData.get('slug'),
+    sort_order: formData.get('sort_order') || 0,
+    parent_id: formData.get('parent_id'),
+  });
   if (!parsed.success) return { success: false, message: parsed.error.issues[0]?.message ?? 'Проверьте поля формы' };
+
+  const supabase = await createClient();
+
+  // Иерархия двухуровневая: подкатегория сама не может стать родителем.
+  // Форма и так предлагает в выпадающем списке только категории верхнего
+  // уровня, но formData можно отправить и в обход формы, поэтому проверяем
+  // ещё раз здесь.
+  if (parsed.data.parent_id) {
+    const { data: parent } = await supabase.from('categories').select('parent_id').eq('id', parsed.data.parent_id).maybeSingle();
+    if (!parent) return { success: false, message: 'Родительская категория не найдена.' };
+    if (parent.parent_id) return { success: false, message: 'Подкатегория не может быть родителем — выберите категорию верхнего уровня.' };
+  }
 
   const image = formData.get('category_image');
   const file = image instanceof File && image.size > 0 ? image : null;
   const imageError = await validateImage(file);
   if (imageError) return { success: false, message: imageError };
 
-  const supabase = await createClient();
   const { data, error } = await supabase.from('categories').insert(parsed.data).select('id').single();
   if (error || !data) {
     const message = error?.code === '23505' ? 'Категория с таким URL уже существует.' : actionError('Не удалось создать категорию.', error);
@@ -73,15 +90,33 @@ export async function createCategory(_prev: ActionResult | null, formData: FormD
 export async function updateCategory(categoryId: string, _prev: ActionResult | null, formData: FormData): Promise<ActionResult> {
   try { await requireUser(); } catch (e) { if (isUnauthorizedError(e)) return { success: false, message: 'Требуется авторизация.' }; throw e; }
 
-  const parsed = categorySchema.safeParse({ name: formData.get('name'), slug: formData.get('slug'), sort_order: formData.get('sort_order') || 0 });
+  const parsed = categorySchema.safeParse({
+    name: formData.get('name'),
+    slug: formData.get('slug'),
+    sort_order: formData.get('sort_order') || 0,
+    parent_id: formData.get('parent_id'),
+  });
   if (!parsed.success) return { success: false, message: parsed.error.issues[0]?.message ?? 'Проверьте поля формы' };
+
+  const supabase = await createClient();
+
+  if (parsed.data.parent_id) {
+    if (parsed.data.parent_id === categoryId) return { success: false, message: 'Категория не может быть родителем сама себе.' };
+    const { data: parent } = await supabase.from('categories').select('parent_id').eq('id', parsed.data.parent_id).maybeSingle();
+    if (!parent) return { success: false, message: 'Родительская категория не найдена.' };
+    if (parent.parent_id) return { success: false, message: 'Подкатегория не может быть родителем — выберите категорию верхнего уровня.' };
+    // Категория, у которой уже есть свои подкатегории, не может сама стать
+    // чьей-то подкатегорией — иначе получится 3 уровня вложенности, а
+    // иерархия рассчитана только на 2 (см. комментарий в миграции 0011).
+    const { count: ownChildren } = await supabase.from('categories').select('id', { count: 'exact', head: true }).eq('parent_id', categoryId);
+    if (ownChildren && ownChildren > 0) return { success: false, message: 'У этой категории уже есть подкатегории — сначала уберите её родителя у них или у неё.' };
+  }
 
   const image = formData.get('category_image');
   const file = image instanceof File && image.size > 0 ? image : null;
   const imageError = await validateImage(file);
   if (imageError) return { success: false, message: imageError };
 
-  const supabase = await createClient();
   const { data: current, error: currentError } = await supabase.from('categories').select('image_path, image_original_path').eq('id', categoryId).maybeSingle();
   if (currentError) return { success: false, message: actionError('Не удалось прочитать категорию.', currentError) };
   if (!current) return { success: false, message: 'Категория не найдена.' };
@@ -138,9 +173,29 @@ export async function updateCategory(categoryId: string, _prev: ActionResult | n
   return { success: true, message: 'Изменения сохранены' };
 }
 
+// Отдельное лёгкое действие для переключателя «На главной» в шапке
+// аккордеона (components/admin/categories/CategoriesManager.tsx) — по тому
+// же принципу, что toggleWorkStatus() у работ: мгновенная мутация одного
+// поля без похода через полную форму название/slug/картинка, чтобы не
+// тянуть за собой валидацию остальных полей и не рисковать перезаписать их
+// текущими (возможно устаревшими на клиенте) значениями.
+export async function toggleCategoryShowOnHome(categoryId: string, next: boolean): Promise<ActionResult> {
+  try { await requireUser(); } catch (e) { if (isUnauthorizedError(e)) return { success: false, message: 'Требуется авторизация.' }; throw e; }
+  const supabase = await createClient();
+  const { error } = await supabase.from('categories').update({ show_on_home: next }).eq('id', categoryId);
+  if (error) return { success: false, message: actionError('Не удалось изменить видимость на главной.', error) };
+  revalidatePath('/admin/categories');
+  revalidatePath('/');
+  return { success: true, message: next ? 'Показывается на главной' : 'Скрыта с главной' };
+}
+
 export async function deleteCategory(categoryId: string): Promise<ActionResult> {
   try { await requireUser(); } catch (e) { if (isUnauthorizedError(e)) return { success: false, message: 'Требуется авторизация.' }; throw e; }
   const supabase = await createClient();
+
+  const { count: childCount } = await supabase.from('categories').select('id', { count: 'exact', head: true }).eq('parent_id', categoryId);
+  if (childCount && childCount > 0) return { success: false, message: `Нельзя удалить: у категории есть ${childCount} подкатегори${childCount === 1 ? 'я' : 'и'}. Сначала удалите их или перенесите в другой раздел.` };
+
   const { count } = await supabase.from('works').select('id', { count: 'exact', head: true }).eq('category_id', categoryId);
   if (count && count > 0) return { success: false, message: `Нельзя удалить: в категории ${count} работ(а). Сначала перенесите или удалите их.` };
 

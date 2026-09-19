@@ -18,6 +18,14 @@ export interface Database {
           // повторное кадрирование в редакторе стартовало от исходника, а не
           // от уже обрезанного результата (см. 0010_image_originals.sql).
           image_original_path: string | null;
+          // Родительская категория для подкатегорий (например, «Угловые» →
+          // «Диваны»). null у категорий верхнего уровня. См.
+          // 0011_category_subcategories.sql.
+          parent_id: string | null;
+          // Показывать ли категорию плиткой на главной («Что мы создаём»).
+          // На каталог /works не влияет — там видны все категории всегда.
+          // См. 0012_category_show_on_home.sql.
+          show_on_home: boolean;
         };
         Insert: {
           id?: string;
@@ -26,6 +34,8 @@ export interface Database {
           sort_order?: number;
           image_path?: string | null;
           image_original_path?: string | null;
+          parent_id?: string | null;
+          show_on_home?: boolean;
           created_at?: string;
         };
         Update: Partial<Database['public']['Tables']['categories']['Insert']>;

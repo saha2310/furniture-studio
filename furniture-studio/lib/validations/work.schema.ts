@@ -48,6 +48,21 @@ export const categorySchema = z.object({
     .max(60)
     .refine(isValidSlug, 'Slug может содержать только латиницу, цифры и дефисы'),
   sort_order: z.coerce.number().int().default(0),
+  // Родительская категория для подкатегорий («Угловые» → «Диваны»).
+  // Пустая строка из <select> трактуется как «нет родителя» (категория
+  // верхнего уровня).
+  parent_id: z
+    .string()
+    .trim()
+    .uuid('Некорректная родительская категория')
+    .nullable()
+    .optional()
+    .transform((v) => (v ? v : null)),
 });
+// show_on_home сюда намеренно не входит: у колонки есть DB-дефолт (true),
+// а менять её можно только через отдельный toggleCategoryShowOnHome() —
+// см. комментарий там же. Если добавить это поле в общую форму
+// названия/slug, сохранение той формы будет тихо перезаписывать значение,
+// выставленное мгновенным переключателем в шапке аккордеона.
 
 export type CategoryFormValues = z.infer<typeof categorySchema>;
