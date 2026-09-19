@@ -57,8 +57,11 @@ export async function createCategory(_prev: ActionResult | null, formData: FormD
     if (parent.parent_id) return { success: false, message: 'Подкатегория не может быть родителем — выберите категорию верхнего уровня.' };
   }
 
+  // У подкатегорий изображения нет (оно нужно только плиткам категорий
+  // верхнего уровня на главной) — даже если файл пришёл в обход формы,
+  // игнорируем его.
   const image = formData.get('category_image');
-  const file = image instanceof File && image.size > 0 ? image : null;
+  const file = !parsed.data.parent_id && image instanceof File && image.size > 0 ? image : null;
   const imageError = await validateImage(file);
   if (imageError) return { success: false, message: imageError };
 
@@ -112,8 +115,13 @@ export async function updateCategory(categoryId: string, _prev: ActionResult | n
     if (ownChildren && ownChildren > 0) return { success: false, message: 'У этой категории уже есть подкатегории — сначала уберите её родителя у них или у неё.' };
   }
 
+  // Подкатегория не имеет собственного изображения — см. createCategory.
+  // Если запись стала подкатегорией (новая или перенос под другого
+  // родителя), её прежнее изображение снимается, а файлы удаляются ниже
+  // общей проверкой «не используется ли ещё где-то».
+  const isSubcategory = !!parsed.data.parent_id;
   const image = formData.get('category_image');
-  const file = image instanceof File && image.size > 0 ? image : null;
+  const file = !isSubcategory && image instanceof File && image.size > 0 ? image : null;
   const imageError = await validateImage(file);
   if (imageError) return { success: false, message: imageError };
 
@@ -122,13 +130,16 @@ export async function updateCategory(categoryId: string, _prev: ActionResult | n
   if (!current) return { success: false, message: 'Категория не найдена.' };
 
   const mediaPath = formData.get('category_image_media_path');
-  const pickedFromLibrary = typeof mediaPath === 'string' && mediaPath.trim().length > 0;
+  const pickedFromLibrary = !isSubcategory && typeof mediaPath === 'string' && mediaPath.trim().length > 0;
   const submittedOriginalPath = readSubmittedOriginalPath(formData);
 
   let nextImagePath = current.image_path;
   let nextOriginalPath = current.image_original_path;
   let uploadedPath: string | null = null;
-  if (file) {
+  if (isSubcategory) {
+    nextImagePath = null;
+    nextOriginalPath = null;
+  } else if (file) {
     const uploaded = await saveCategoryImage(supabase, categoryId, file);
     if (uploaded.error || !uploaded.path) return { success: false, message: uploaded.error ?? 'Не удалось загрузить изображение.' };
     nextImagePath = uploaded.path;

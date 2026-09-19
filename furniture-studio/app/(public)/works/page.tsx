@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { getPublishedWorksPageGrouped, getCategories, getAvailableColors } from '@/lib/queries/works';
+import { getPublishedWorksPageGrouped, getTopLevelCategoriesWithChildren, getAvailableColors } from '@/lib/queries/works';
 import { WorksGrid } from '@/components/works/WorksGrid';
 import { CategoryFilter } from '@/components/works/CategoryFilter';
 import { ColorFilter } from '@/components/works/ColorFilter';
@@ -16,7 +16,7 @@ export default async function WorksPage({ searchParams }: { searchParams: { cate
   const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
   const [{ works, total, hasMore }, categories, colors] = await Promise.all([
     getPublishedWorksPageGrouped(categorySlug, colorHex, page, 8),
-    getCategories(),
+    getTopLevelCategoriesWithChildren(),
     getAvailableColors(categorySlug),
   ]);
 

@@ -57,7 +57,7 @@ function Fields({
           <option value="">— нет, это категория верхнего уровня —</option>
           {parentOptions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
-        <span className="mt-1 block text-[11px] text-ink/40">Выберите, если это подвид другой категории (например, «Угловые» внутри «Диванов»). На главной подкатегории показываются в окне выбора у родительской плитки.</span>
+        <span className="mt-1 block text-[11px] text-ink/40">Выберите, если это подвид другой категории (например, «Угловые» внутри «Диванов»). Подвиды выбираются в окне — на главной у родительской плитки и в фильтре каталога /works. У подвида нет собственного изображения: если сделать категорию подвидом, её изображение будет удалено.</span>
       </label>
     ) : (
       <input type="hidden" name="parent_id" value={values.parentId} />
@@ -92,13 +92,11 @@ function NewSubcategoryForm({ parentId, onDone }: { parentId: string; onDone: ()
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [touched, setTouched] = useState(false);
-  const [imageBusy, setImageBusy] = useState(false);
 
   return <form action={formAction} className="mt-3 space-y-5 border border-ink/10 bg-canvas p-4 sm:p-5">
     <Fields controlled values={{ name, slug, sort: 0, parentId }} onName={(value) => { setName(value); if (!touched) setSlug(slugify(value)); }} onSlug={(value) => { setTouched(true); setSlug(value); }} topLevelCategories={[]} showParentField={false} />
-    <SingleImageField fieldName="category_image" label="Изображение подкатегории" help="Необязательно — если не задать, подкатегория будет отображаться без своей картинки там, где это важно." cropRatio={4 / 3} compact onBusyChange={setImageBusy} />
     <div className="flex flex-wrap items-center gap-3">
-      <Submit label="Добавить подкатегорию" busy={imageBusy} />
+      <Submit label="Добавить подкатегорию" />
       <button type="button" onClick={onDone} className="min-h-11 border border-ink/10 px-4 py-3 text-[10px] uppercase tracking-[0.14em] text-ink/55 hover:text-ink">Отмена</button>
       {state && <FormStatus state={{ status: state.success ? 'success' : 'error', message: state.message }} />}
     </div>
@@ -169,9 +167,12 @@ function CategoryAccordion({
         aria-expanded={open}
         className={`flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-ink/[0.02] sm:gap-4 sm:px-5 sm:py-4 ${isChild ? 'pl-9 sm:pl-12' : ''}`}
       >
-        <div className="h-12 w-16 shrink-0 overflow-hidden bg-black sm:h-14 sm:w-20">
-          {category.image_path ? <img src={workImageUrl(category.image_path)} alt="" className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-[8px] uppercase tracking-[0.1em] text-ink/30">Нет фото</div>}
-        </div>
+        {/* У подкатегорий изображения нет — миниатюра только у категорий верхнего уровня. */}
+        {!isChild && (
+          <div className="h-12 w-16 shrink-0 overflow-hidden bg-black sm:h-14 sm:w-20">
+            {category.image_path ? <img src={workImageUrl(category.image_path)} alt="" className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-[8px] uppercase tracking-[0.1em] text-ink/30">Нет фото</div>}
+          </div>
+        )}
         <div className="min-w-0 flex-1">
           {isChild && <p className="text-[9px] uppercase tracking-[0.14em] text-ink/35">Подкатегория</p>}
           <p className="truncate text-sm text-ink sm:text-base">{category.name}</p>
@@ -189,7 +190,7 @@ function CategoryAccordion({
           {editing ? (
             <form action={formAction} className="space-y-5">
               <Fields values={{ name: category.name, slug: category.slug, sort: category.sort_order, parentId: category.parent_id ?? '' }} topLevelCategories={topLevelCategories} excludeCategoryId={category.id} />
-              <SingleImageField fieldName="category_image" existingPath={category.image_path} existingOriginalPath={category.image_original_path} label="Изображение категории" help="Изменения текста и изображения сохраняются одной кнопкой ниже." cropRatio={4 / 3} compact onBusyChange={setImageBusy} />
+              {!isChild && <SingleImageField fieldName="category_image" existingPath={category.image_path} existingOriginalPath={category.image_original_path} label="Изображение категории" help="Изменения текста и изображения сохраняются одной кнопкой ниже." cropRatio={4 / 3} compact onBusyChange={setImageBusy} />}
               <div className="flex flex-wrap items-center gap-3">
                 <Submit label="Сохранить изменения" busy={imageBusy} />
                 <button type="button" onClick={() => setEditing(false)} className="min-h-11 border border-ink/10 px-4 py-3 text-[10px] uppercase tracking-[0.14em] text-ink/55 hover:text-ink">Отмена</button>
