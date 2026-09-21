@@ -26,6 +26,24 @@
      контраст гарантирован в обеих темах одновременно. */
   --color-danger: 252 165 165; /* red-300 — светлый текст, читаем на тёмном фоне */
 
+  /* Брендовый зелёный акцент — интерактивные состояния: активная категория
+     (CategoryFilter), активный таб нижней навигации (MobileBottomNav),
+     тумблер темы (ThemeToggle), hover CTA-кнопок и пагинации, стрелка
+     «Смотреть» на карточке работы. Раньше в паре мест был захардкожен
+     Tailwind-класс text-emerald-400 без переключения по теме — то же
+     значение теперь живёт здесь и переключается по data-theme, как
+     --color-danger выше. Не путать с --card-accent (инлайн-стиль в
+     WorkCard.tsx) — там цвет ткани конкретного товара, к бренд-акценту
+     отношения не имеет и не трогается. */
+  --color-accent: 52 211 153; /* emerald-400 — ярче на тёмном фоне */
+  --color-accent-strong: 110 231 183; /* emerald-300 — hover/более яркое состояние */
+
+  /* Сердечко «избранное» — сознательно отдельный акцент, НЕ равен
+     --color-accent: это универсальная семантика «люблю» (розовый), а не
+     цвет бренда. pink-500 достаточно контрастен в обеих темах, поэтому
+     светлая тема ниже это значение не переопределяет. */
+  --color-favorite: 236 72 153;
+
   /* "Стеклянные" кнопки/навигация (reference-button, liquid-glass-*,
      mobile-bottom-nav) держат один и тот же рецепт (блюр + блик + база),
      только с разными базовыми цветами по теме — см. использование ниже. */
@@ -71,6 +89,12 @@
   /* Тёмно-красный, а не светлый — на белой/светлой подложке red-300 почти
      не читается (см. комментарий у --color-danger в :root). */
   --color-danger: 185 28 28; /* red-700 */
+
+  /* Тот же зелёный акцент, но темнее — emerald-400 на светлом фоне почти не
+     читается как текст (стрелка «Смотреть», активный таб). Для box-shadow/
+     свечения оттенок значения не критичен, но для текста это обязательно. */
+  --color-accent: 5 150 105; /* emerald-600 */
+  --color-accent-strong: 4 120 87; /* emerald-700 */
 
   /* Стеклянные кнопки в светлой теме — по просьбе заказчика ярче: белая
      (не в цвет страницы) подложка, тёмная контрастная обводка и тёмный
@@ -462,6 +486,7 @@ select:focus-visible,
   .liquid-glass-button:hover,
   .liquid-glass-filter-button:hover,
   .liquid-glass-icon-button:hover {
+    transform: translateY(-2px);
     border-color: rgba(var(--glass-border) / var(--glass-border-hover-alpha)) !important;
     background:
       linear-gradient(115deg, rgba(var(--glass-shine) / 0.085), rgba(var(--glass-shine) / 0.022) 48%, rgba(var(--glass-shine) / 0.06)),
@@ -473,6 +498,18 @@ select:focus-visible,
       0 10px 28px rgba(0, 0, 0, 0.14);
     -webkit-backdrop-filter: blur(14px) saturate(110%);
     backdrop-filter: blur(14px) saturate(110%);
+  }
+
+  /* «Вжатие» по клику — во всех референсах кнопки чуть уменьшаются при
+     нажатии (scale 0.92–0.98). Быстрая отдельная transition-duration, чтобы
+     не наследовать долгий 650ms из базового правила — иначе клик ощущался
+     бы вязким. */
+  .reference-button:active,
+  .liquid-glass-button:active,
+  .liquid-glass-filter-button:active,
+  .liquid-glass-icon-button:active {
+    transform: translateY(0) scale(0.96);
+    transition-duration: 120ms;
   }
 
   .reference-button:hover::before,
@@ -504,8 +541,51 @@ select:focus-visible,
      Раньше жила Tailwind-классом с вложенными var()/запятой в произвольном
      значении (hover:[border-color:var(--card-accent,rgb(...))]) — вынесено
      в обычный CSS, чтобы не зависеть от парсинга произвольных значений. */
-  .journal-card:hover {
+  .journal-card,
+  .work-card-grid {
+    transition: border-color 300ms ease, transform 400ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 400ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .journal-card:hover,
+  .work-card-grid:hover {
     border-color: var(--card-accent, rgb(var(--color-ink) / 0.25));
+    transform: translateY(-4px);
+    box-shadow: 0 22px 44px -18px rgba(0, 0, 0, 0.22), 0 6px 16px rgba(0, 0, 0, 0.07);
+  }
+
+  /* Зум + лёгкое повышение яркости фото на hover карточки — независимо от
+     администраторского зума/сдвига/отражения фото (--catalog-zoom/--catalog-flip
+     из catalogImageStyle в WorkCard.tsx: тот зум остаётся «базовым», hover
+     умножает его через calc(), а не перезаписывает). */
+  .catalog-image {
+    transform: scale(var(--catalog-zoom, 1)) scaleX(var(--catalog-flip, 1));
+    transition: transform 700ms cubic-bezier(0.16, 1, 0.3, 1), filter 500ms ease;
+  }
+
+  .group:hover .catalog-image {
+    transform: scale(calc(var(--catalog-zoom, 1) * 1.06)) scaleX(var(--catalog-flip, 1));
+    filter: brightness(1.04);
+  }
+
+  /* Подчёркивание у «Быстрый просмотр» на hover, растущее слева направо —
+     перенесено из quick-view-btn::after в code_artifact(3).html. */
+  .quick-view-trigger {
+    position: relative;
+  }
+
+  .quick-view-trigger::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: -2px;
+    width: 0;
+    height: 1px;
+    background: currentColor;
+    transition: width 300ms ease;
+  }
+
+  .quick-view-trigger:hover::after {
+    width: 100%;
   }
 
   /* Крупнее обычного круглого стеклянного значка — специально для стрелок
@@ -515,6 +595,50 @@ select:focus-visible,
     width: 52px;
     height: 52px;
     min-height: 52px;
+  }
+
+  /* Accent-подсветка только на кнопках пагинации /works (WorksGrid.tsx) —
+     не на всём .reference-button:hover, иначе задело бы CTA в hero/шапке/
+     мобильном меню («Обсудить проект» и т.п.), которые здесь не обсуждались. */
+  .works-pagination .reference-button:hover {
+    border-color: rgba(var(--color-accent) / 0.45) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(var(--glass-shine) / 0.14),
+      0 0 18px rgba(var(--color-accent) / 0.22),
+      0 10px 28px rgba(0, 0, 0, 0.14);
+  }
+
+  /* Accent-свечение только для тумблера темы (ThemeToggle.tsx) — намеренно
+     НЕ на весь .liquid-glass-icon-button:hover, иначе зелёный блик появился
+     бы и на кнопке избранного (там своя розовая семантика), и на стрелках
+     галереи, и на бургере мобильного меню. */
+  .theme-toggle-btn:hover {
+    border-color: rgba(var(--color-accent) / 0.5) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(var(--glass-shine) / 0.14),
+      0 0 22px rgba(var(--color-accent) / 0.3),
+      0 10px 28px rgba(0, 0, 0, 0.14);
+  }
+
+  .theme-toggle-btn:hover svg {
+    transform: rotate(15deg) scale(1.1);
+  }
+
+  .theme-toggle-btn svg {
+    transition: transform 450ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  /* Микро-анимация иконки по клику — перенесено из
+     liquid_glass_button_animation(1).html (icon-pulse). Класс ставит сам
+     компонент (ThemeToggle.tsx) на короткое время после клика. */
+  .theme-toggle-icon-pulse {
+    animation: themeTogglePulse 450ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  @keyframes themeTogglePulse {
+    0% { transform: scale(1) rotate(0deg); }
+    50% { transform: scale(0.8) rotate(-30deg); }
+    100% { transform: scale(1) rotate(0deg); }
   }
 
   .liquid-glass-icon-button .favorite-heart {
@@ -537,6 +661,56 @@ select:focus-visible,
 
   .liquid-glass-icon-button[aria-pressed="true"] .favorite-heart {
     transform: scale(1.08);
+  }
+
+  /* Сердечко «избранное» окрашивается в розовый (--color-favorite), а не в
+     --color-danger/ink и НЕ в --color-accent: у иконки заполненного сердца
+     собственная семантика («люблю»). Работает во всех трёх местах, где
+     рисуется NavigationIcon name="favorites" — FavoriteButton (карточки),
+     FavoriteHeaderButton (шапка) и MobileBottomNav (нижний таб). */
+  .favorite-heart-icon.is-active {
+    color: rgb(var(--color-favorite));
+  }
+
+  /* Только сама кнопка-сердце (не хедер-ссылка на /favorites и не таб
+     навигации — там pointer-events/переход на страницу, пульс неуместен).
+     Класс .is-favorite ставится в FavoriteButton.tsx именно на эту кнопку,
+     поэтому сюда не попадает разделяемый .liquid-glass-icon-button[aria-pressed]
+     тумблера темы. */
+  .liquid-glass-icon-button.is-favorite[aria-pressed="true"] {
+    border-color: rgba(var(--color-favorite) / 0.55) !important;
+    background:
+      linear-gradient(135deg, rgba(var(--color-favorite) / 0.22), rgba(var(--color-favorite) / 0.06)),
+      rgba(var(--glass-base) / 0.34) !important;
+    box-shadow:
+      0 0 22px rgba(var(--color-favorite) / 0.35),
+      inset 0 1px 2px rgba(var(--glass-shine) / 0.35);
+    animation: favoriteJuicyPulse 420ms cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+
+  @keyframes favoriteJuicyPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.28); }
+    100% { transform: scale(1); }
+  }
+
+  /* Розовые частицы-искры при добавлении в избранное (см. FavoriteButton.tsx:
+     createFavoriteParticles). Позиционируются JS-ом инлайново (left/top/--tx/
+     --ty), здесь только внешний вид и анимация разлёта. */
+  .favorite-particle {
+    position: fixed;
+    pointer-events: none;
+    width: var(--fp-size, 6px);
+    height: var(--fp-size, 6px);
+    background: rgb(var(--color-favorite));
+    border-radius: 50%;
+    z-index: 10000;
+    animation: favoriteParticleExplode 550ms ease-out forwards;
+  }
+
+  @keyframes favoriteParticleExplode {
+    0% { transform: translate(0, 0) scale(1); opacity: 1; }
+    100% { transform: translate(var(--fp-tx), var(--fp-ty)) scale(0); opacity: 0; }
   }
 
   .favorite-header-button {
@@ -587,15 +761,35 @@ select:focus-visible,
   }
 
   .liquid-glass-filter-button.is-active {
-    border-color: rgba(var(--glass-border) / 0.26) !important;
+    border-color: rgba(var(--color-accent) / 0.55) !important;
     background:
-      linear-gradient(115deg, rgba(var(--glass-shine) / 0.075), rgba(var(--glass-shine) / 0.018) 50%, rgba(var(--glass-shine) / 0.045)),
+      linear-gradient(115deg, rgba(var(--color-accent) / 0.16), rgba(var(--glass-shine) / 0.018) 50%, rgba(var(--color-accent) / 0.08)),
       rgba(var(--glass-base) / 0.3) !important;
-    color: rgba(var(--glass-text) / 0.92) !important;
+    color: rgb(var(--color-accent)) !important;
     box-shadow:
       inset 0 1px 0 rgba(var(--glass-shine) / 0.12),
-      inset 0 -1px 0 rgba(var(--glass-shine) / 0.025),
+      0 0 16px rgba(var(--color-accent) / 0.22),
       0 6px 18px rgba(0, 0, 0, 0.08);
+  }
+
+  /* Ripple от точки клика на фильтре категорий — перенесено из
+     code_artifact(2).html (CategoryFilter.tsx: spawnFilterRipple).
+     .liquid-glass-filter-button уже держит position:relative + overflow:hidden
+     из общего правила выше — ripple обрежется по форме пилюли сам собой. */
+  .filter-ripple {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(var(--color-accent) / 0.4);
+    transform: scale(0);
+    pointer-events: none;
+    animation: filterRippleEffect 600ms ease-out forwards;
+  }
+
+  @keyframes filterRippleEffect {
+    to {
+      transform: scale(4);
+      opacity: 0;
+    }
   }
 
   .about-teaser-button {
@@ -734,10 +928,10 @@ select:focus-visible,
       z-index: 90;
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
-      min-height: 60px;
-      padding: 6px;
+      gap: 6px;
+      padding: 6px 7px;
       border: 1px solid rgba(var(--glass-border) / var(--glass-border-alpha));
-      border-radius: 999px;
+      border-radius: 22px;
       background:
         linear-gradient(115deg, rgba(var(--glass-shine) / 0.055), rgba(var(--glass-shine) / 0.012) 48%, rgba(var(--glass-shine) / 0.035)),
         rgba(var(--glass-base) / 0.34);
@@ -748,39 +942,111 @@ select:focus-visible,
         0 10px 28px rgba(0, 0, 0, 0.16);
       -webkit-backdrop-filter: blur(14px) saturate(108%);
       backdrop-filter: blur(14px) saturate(108%);
+      overflow: visible;
     }
 
     .mobile-bottom-nav-item {
       position: relative;
-      min-width: 0;
-      min-height: 48px;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      gap: 2px;
-      border-radius: 999px;
-      padding: 3px 5px;
-      font-size: 9px;
-      line-height: 1.1;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
+      justify-content: flex-end;
+      padding: 0 0 3px;
+      border-radius: 18px;
+      text-decoration: none;
       color: rgba(var(--glass-text) / 0.58);
-      transition: color 220ms ease, background-color 220ms ease, box-shadow 220ms ease;
+      transition: transform 350ms cubic-bezier(0.34, 1.56, 0.64, 1), background-color 300ms ease;
+    }
+
+    .mobile-bottom-nav-item span:last-child {
+      font-size: 10px;
+      font-weight: 500;
+      line-height: 1.1;
+      margin-top: 3px;
+      letter-spacing: -0.01em;
+      transition: color 300ms ease, transform 350ms cubic-bezier(0.34, 1.56, 0.64, 1), font-weight 300ms ease;
+    }
+
+    /* Квадрат иконки — вровень с панелью (без выступа над баром). */
+    .mobile-bottom-nav-icon-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 35px;
+      height: 35px;
+      margin-top: 0px;
+      border-radius: 14px;
+      background: rgba(var(--glass-base) / 0.55);
+      box-shadow:
+        inset 0 1px 0 rgba(var(--glass-shine) / 0.12),
+        0 6px 14px -6px rgba(0, 0, 0, 0.35);
+      -webkit-backdrop-filter: blur(6px);
+      backdrop-filter: blur(6px);
+      transition: transform 400ms cubic-bezier(0.34, 1.56, 0.64, 1), background-color 350ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 350ms ease;
+    }
+
+    .mobile-bottom-nav-item svg {
+      transition: transform 400ms cubic-bezier(0.34, 1.56, 0.64, 1), stroke 300ms ease;
     }
 
     .mobile-bottom-nav-item.is-active {
-      color: rgba(var(--glass-text-strong) / 0.96);
-      background: rgba(var(--glass-shine) / 0.045);
-      box-shadow: inset 0 1px 0 rgba(var(--glass-shine) / 0.05);
+      color: rgb(var(--color-accent));
+      transform: translateY(-3px);
     }
 
-    .mobile-bottom-nav-icon-wrap {
-      position: relative;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 23px;
+    .mobile-bottom-nav-item.is-active .mobile-bottom-nav-icon-wrap {
+      background: linear-gradient(135deg, rgba(var(--color-accent) / 0.28), rgba(var(--color-accent-strong) / 0.20));
+      box-shadow:
+        0 8px 20px -4px rgba(var(--color-accent) / 0.35),
+        inset 0 1px 1px rgba(255, 255, 255, 0.25);
+      transform: scale(1.08) translateY(-2px);
+    }
+
+    .mobile-bottom-nav-item.is-active span:last-child {
+      font-weight: 700;
+      transform: scale(1.06);
+    }
+
+    .mobile-bottom-nav-item:hover:not(.is-active) {
+      transform: translateY(-2px);
+    }
+
+    .mobile-bottom-nav-item:hover:not(.is-active) .mobile-bottom-nav-icon-wrap {
+      transform: scale(1.1);
+      background: rgba(var(--glass-base) / 0.8);
+    }
+
+    .mobile-bottom-nav-item:hover svg {
+      transform: scale(1.15);
+    }
+
+    .mobile-bottom-nav-item:active {
+      transform: scale(0.9) translateY(0) !important;
+      transition-duration: 100ms;
+    }
+
+    /* Ripple по тапу — перенесено из juicy_mobile_bottom_navigation.html
+       (setActiveItem/.nav-ripple). Спан вставляется JS-ом в MobileBottomNav.tsx
+       по клику и сам себя удаляет через 550ms. */
+    .nav-ripple {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 36px;
+      height: 36px;
+      margin: -18px 0 0 -18px;
+      border-radius: 50%;
+      background: currentColor;
+      opacity: 0.25;
+      pointer-events: none;
+      transform: scale(0);
+      animation: navRipple 550ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes navRipple {
+      0% { transform: scale(0.5); opacity: 0.5; }
+      100% { transform: scale(2.4); opacity: 0; }
     }
 
     .mobile-bottom-nav-count {
@@ -832,11 +1098,18 @@ select:focus-visible,
 }
 
 [data-theme='light'] .mobile-bottom-nav-item.is-active {
-  color: rgba(12, 12, 11, 0.96);
-  background: rgba(255, 255, 255, 0.16);
+  color: rgb(var(--color-accent));
+}
+
+[data-theme='light'] .mobile-bottom-nav-item.is-active .mobile-bottom-nav-icon-wrap {
+  background: linear-gradient(135deg, rgba(var(--color-accent) / 0.16), rgba(var(--color-accent-strong) / 0.16));
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.52),
-    0 3px 12px rgba(0, 0, 0, 0.07);
+    0 8px 20px -4px rgba(var(--color-accent) / 0.25),
+    inset 0 1px 1px rgba(255, 255, 255, 0.9);
+}
+
+[data-theme='light'] .mobile-bottom-nav-item:hover:not(.is-active) .mobile-bottom-nav-icon-wrap {
+  background-color: rgba(24, 24, 22, 0.05);
 }
 
 [data-theme='light'] .mobile-bottom-nav-count {
@@ -957,11 +1230,14 @@ select:focus-visible,
   }
 
   [data-theme='light'] .mobile-bottom-nav-item.is-active {
-    color: rgba(12, 12, 11, 0.92);
-    background: rgba(255, 255, 255, 0.18);
+    color: rgb(var(--color-accent));
+  }
+
+  [data-theme='light'] .mobile-bottom-nav-item.is-active .mobile-bottom-nav-icon-wrap {
+    background: linear-gradient(135deg, rgba(var(--color-accent) / 0.16), rgba(var(--color-accent-strong) / 0.16));
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.52),
-      0 2px 10px rgba(0, 0, 0, 0.05);
+      0 8px 20px -4px rgba(var(--color-accent) / 0.25),
+      inset 0 1px 1px rgba(255, 255, 255, 0.9);
   }
 
   [data-theme='light'] .mobile-bottom-nav-count {
@@ -1002,11 +1278,14 @@ select:focus-visible,
   }
 
   [data-theme='light'] .mobile-bottom-nav-item.is-active {
-    color: rgba(12, 12, 11, 0.92);
-    background: rgba(255, 255, 255, 0.18);
+    color: rgb(var(--color-accent));
+  }
+
+  [data-theme='light'] .mobile-bottom-nav-item.is-active .mobile-bottom-nav-icon-wrap {
+    background: linear-gradient(135deg, rgba(var(--color-accent) / 0.16), rgba(var(--color-accent-strong) / 0.16));
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.52),
-      0 2px 10px rgba(0, 0, 0, 0.05);
+      0 8px 20px -4px rgba(var(--color-accent) / 0.25),
+      inset 0 1px 1px rgba(255, 255, 255, 0.9);
   }
 
   [data-theme='light'] .mobile-bottom-nav-count {
@@ -1032,12 +1311,6 @@ select:focus-visible,
 
   [data-theme='light'] body:has(.photo-hero) .mobile-bottom-nav-item {
     color: rgba(255, 255, 255, 0.68);
-  }
-
-  [data-theme='light'] body:has(.photo-hero) .mobile-bottom-nav-item.is-active {
-    color: rgba(255, 255, 255, 0.96);
-    background: rgba(255, 255, 255, 0.12);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.20);
   }
 }
 

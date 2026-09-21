@@ -23,7 +23,7 @@ export function WorksGrid({
         ))}
       </div>
       {(prevHref || nextHref) && (
-        <div className="mt-12 flex items-center justify-center gap-3">
+        <div className="works-pagination mt-12 flex items-center justify-center gap-3">
           {prevHref && (
             <Link href={prevHref} className="reference-button" rel="prev">
               <span aria-hidden="true">←</span>

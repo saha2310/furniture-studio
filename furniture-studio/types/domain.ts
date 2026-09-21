@@ -1,6 +1,11 @@
 import type { Database } from './database';
 
 export type Category = Database['public']['Tables']['categories']['Row'];
+// Категория верхнего уровня вместе со своими подкатегориями (parent_id
+// указывает на неё). Используется там, где нужна именно иерархия — например,
+// плитки «Что мы создаём» на главной с модалкой выбора подвида (см.
+// getTopLevelCategoriesWithChildren в lib/queries/works.ts).
+export type CategoryWithChildren = Category & { children: Category[] };
 export type WorkRow = Database['public']['Tables']['works']['Row'];
 export type WorkImage = Database['public']['Tables']['work_images']['Row'];
 export type SiteSettings = Database['public']['Tables']['site_settings']['Row'];

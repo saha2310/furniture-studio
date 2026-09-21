@@ -45,10 +45,16 @@ components/admin/<entity>/*Form.tsx  — форма редактирования
 components/<entity>/*.tsx            — публичный рендер (если сущность публичная)
 ```
 
-**Эталон для копирования паттерна — `lib/actions/categories.ts` (112 строк,
-самый маленький и полный: create/update/delete + загрузка изображения +
-откат при ошибке). Не читать `works.ts` (432 строки) для этой цели — там та
-же логика, но с доп. усложнением (цветовые варианты, specs).**
+**Эталон для классической формы «создать/изменить» — `lib/actions/works.ts`
+(create/update через `formData` + кнопка «Сохранить»).** Исключение —
+`lib/actions/categories.ts`: админка категорий работает БЕЗ кнопки
+«Сохранить» (автосохранение), поэтому там не одна большая форма, а набор
+маленьких экшенов — `createCategoryQuick`, `renameCategory`,
+`setCategoryImage` (получает уже загруженные в Storage пути, файлы в теле
+экшена не ездят), `toggleCategoryShowOnHome`, `deleteCategory`. UI —
+`components/admin/categories/` (`autosave.ts` — общие хуки статуса и
+автосохранения текста). `createCategory(formData)` оставлен только для
+быстрого создания категории из формы работы (`CategoriesPopover`).
 
 Общий контракт action-функции:
 ```ts

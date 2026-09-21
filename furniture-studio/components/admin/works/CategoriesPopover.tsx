@@ -63,7 +63,11 @@ export function CategoriesPopover({
     const result = await createCategory(null, formData);
     setCreating(false);
     if (!result.success || !result.id) { setCreateError(result.message); return; }
-    const created: Category = { id: result.id, name, slug: slugify(name), sort_order: categories.length, created_at: new Date().toISOString(), image_path: null, image_original_path: null };
+    // Категория, созданная отсюда (быстрое создание из формы работы), всегда
+    // верхнего уровня — этот попап не предлагает выбрать родителя, поэтому
+    // parent_id честно null. show_on_home берём с тем же дефолтом, что и
+    // сама колонка в БД (см. 0012_category_show_on_home.sql).
+    const created: Category = { id: result.id, name, slug: slugify(name), sort_order: categories.length, created_at: new Date().toISOString(), image_path: null, image_original_path: null, parent_id: null, show_on_home: true };
     onCategoryCreated(created);
     // Новая категория сразу становится основной, если основная ещё не
     // выбрана (например, для новой работы), иначе — дополнительной.

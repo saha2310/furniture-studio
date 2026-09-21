@@ -80,6 +80,90 @@ function jsonContainsValue(node: unknown, value: string): boolean {
   return false;
 }
 
+/** Собирает все строковые "листья" произвольного JSON в один Set — используется
+ * ниже вместо повторного обхода content_json на каждый файл медиатеки. */
+function collectJsonStrings(node: unknown, out: Set<string>) {
+  if (node == null) return;
+  if (typeof node === 'string') { out.add(node); return; }
+  if (Array.isArray(node)) { node.forEach((item) => collectJsonStrings(item, out)); return; }
+  if (typeof node === 'object') { Object.values(node as Record<string, unknown>).forEach((item) => collectJsonStrings(item, out)); }
+}
+
+export interface MediaAssetWithUsage extends MediaAsset {
+  used: boolean;
+}
+
+/**
+ * Быстрая версия проверки использования для СПИСКА файлов сразу — в отличие
+ * от getMediaAssetUsage (который делает несколько запросов НА ОДИН файл и
+ * рассчитан на точечную проверку перед конкретным удалением), эта функция
+ * один раз забирает все ссылающиеся на Storage колонки и home_sections, а
+ * дальше сверяет пути в памяти. Для страницы "Медиатека", где нужно пометить
+ * сразу все файлы бакета, это на порядки меньше запросов к БД, чем вызывать
+ * getMediaAssetUsage в цикле по каждому файлу.
+ *
+ * Результат используется только для отображения (фильтр "неиспользуемые",
+ * бейджи) — реальное удаление всё равно идёт через deleteMediaAsset, который
+ * непосредственно перед удалением заново и точечно перепроверяет актуальное
+ * состояние через getMediaAssetUsage. Так что устаревшие на секунду данные
+ * здесь не риск: они не могут привести к удалению файла, который на самом
+ * деле используется — только к неточной пометке в списке.
+ */
+export async function listMediaAssetsWithUsage(): Promise<{ assets: MediaAssetWithUsage[]; error?: string }> {
+  try {
+    await requireUser();
+  } catch (e) {
+    if (isUnauthorizedError(e)) return { assets: [], error: 'Требуется авторизация.' };
+    throw e;
+  }
+
+  const supabase = await createClient();
+  const [works, site] = await Promise.all([
+    listBucketRecursive(supabase, 'works'),
+    listBucketRecursive(supabase, 'site'),
+  ]);
+  const all = [...works, ...site];
+
+  const [{ data: images }, { data: categories }, { data: settings }, { data: sections }] = await Promise.all([
+    supabase.from('work_images').select('storage_path, original_path'),
+    supabase.from('categories').select('image_path, image_original_path'),
+    supabase.from('site_settings').select('logo_path, logo_original_path, favicon_path, favicon_original_path, og_image_path, og_image_original_path').maybeSingle(),
+    supabase.from('home_sections').select('content_json'),
+  ]);
+
+  const usedWorksPaths = new Set<string>();
+  for (const img of images ?? []) {
+    if (img.storage_path) usedWorksPaths.add(img.storage_path);
+    if (img.original_path) usedWorksPaths.add(img.original_path);
+  }
+  for (const cat of categories ?? []) {
+    if (cat.image_path) usedWorksPaths.add(cat.image_path);
+    if (cat.image_original_path) usedWorksPaths.add(cat.image_original_path);
+  }
+
+  const usedSitePaths = new Set<string>();
+  if (settings) {
+    for (const value of Object.values(settings)) {
+      if (typeof value === 'string' && value) usedSitePaths.add(value);
+    }
+  }
+
+  // content_json секций может ссылаться на файлы в любом из двух бакетов
+  // (например, карусель контактов допускает и works, и site) — не различаем
+  // бакет для этого источника, как и getMediaAssetUsage для одного файла.
+  const usedAnyPaths = new Set<string>();
+  for (const section of sections ?? []) collectJsonStrings(section.content_json, usedAnyPaths);
+
+  return {
+    assets: all.map((asset) => ({
+      ...asset,
+      used: asset.bucket === 'works'
+        ? usedWorksPaths.has(asset.path) || usedAnyPaths.has(asset.path)
+        : usedSitePaths.has(asset.path) || usedAnyPaths.has(asset.path),
+    })),
+  };
+}
+
 export async function getMediaAssetUsage(bucket: MediaBucket, path: string): Promise<{ used: boolean; locations: string[] }> {
   await requireUser().catch(() => null);
   const supabase = await createClient();

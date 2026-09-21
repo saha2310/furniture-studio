@@ -17,6 +17,13 @@ const config: Config = {
         stone: 'rgb(var(--color-stone) / <alpha-value>)',
         espresso: 'rgb(var(--color-espresso) / <alpha-value>)',
         danger: 'rgb(var(--color-danger) / <alpha-value>)',
+        // Брендовый зелёный акцент (активная категория/таб, тумблер темы,
+        // hover CTA и пагинации, стрелка «Смотреть» на карточке работы).
+        accent: 'rgb(var(--color-accent) / <alpha-value>)',
+        accentStrong: 'rgb(var(--color-accent-strong) / <alpha-value>)',
+        // Отдельный акцент только для сердечка «избранное» — намеренно НЕ
+        // равен accent, см. комментарий у --color-favorite в globals.css.
+        favorite: 'rgb(var(--color-favorite) / <alpha-value>)',
       },
       fontFamily: {
         display: ['var(--font-sans)'],

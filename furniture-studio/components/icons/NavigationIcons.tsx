@@ -33,7 +33,12 @@ export function NavigationIcon({ name, active = false, className = 'h-5 w-5' }: 
 
   if (name === 'favorites') {
     return (
-      <svg {...common} className={className} aria-hidden="true" fill={active ? 'currentColor' : 'none'}>
+      <svg
+        {...common}
+        className={`${className} favorite-heart-icon${active ? ' is-active' : ''}`}
+        aria-hidden="true"
+        fill={active ? 'currentColor' : 'none'}
+      >
         <path d="M12 20.3 4.9 13.5a4.8 4.8 0 0 1 6.8-6.8L12 7l.3-.3a4.8 4.8 0 0 1 6.8 6.8L12 20.3Z" />
       </svg>
     );

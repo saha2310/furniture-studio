@@ -11,6 +11,7 @@ const LINKS = [
   { href: '/admin/categories', label: 'Категории' },
   { href: '/admin/home', label: 'Главная' },
   { href: '/admin/about', label: 'О мастерской' },
+  { href: '/admin/media', label: 'Медиатека' },
   { href: '/admin/settings', label: 'Настройки' },
 ];
 
