@@ -5,17 +5,21 @@ import { useEffect, useState } from 'react';
 // Переиспользуемая «сцена» с бегущим котом — без фонового оверлея.
 // Используется и в RouteLoadingCat (полноэкранный индикатор переходов),
 // и внутри лайтбокса галереи (там уже есть свой тёмный фон).
-export function LoadingCatScene({ label = 'Загрузка' }: { label?: string }) {
+// hideLabel — для чисто декоративного использования (например, плашка на
+// дашборде админки): бежит тот же кот, но без текста "Загрузка..." и точек,
+// т.к. там он не привязан к реальной загрузке чего-либо.
+export function LoadingCatScene({ label = 'Загрузка', hideLabel = false }: { label?: string; hideLabel?: boolean }) {
   const [dots, setDots] = useState('');
 
   useEffect(() => {
+    if (hideLabel) return;
     let count = 0;
     const id = setInterval(() => {
       count = (count + 1) % 4;
       setDots('.'.repeat(count));
     }, 400);
     return () => clearInterval(id);
-  }, []);
+  }, [hideLabel]);
 
   return (
     <div className="route-loader-panel">
@@ -140,10 +144,12 @@ export function LoadingCatScene({ label = 'Загрузка' }: { label?: string
         </div>
       </div>
 
-      <div className="route-loader-text">
-        {label}
-        <span className="route-loader-dots">{dots}</span>
-      </div>
+      {!hideLabel && (
+        <div className="route-loader-text">
+          {label}
+          <span className="route-loader-dots">{dots}</span>
+        </div>
+      )}
     </div>
   );
 }

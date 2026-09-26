@@ -4,13 +4,16 @@ import { requireUser } from '@/lib/actions/auth-guard';
 import { workImageUrl } from '@/lib/utils/image';
 import type { Category, CategoryWithChildren, WorkColorVariant, WorkWithUrls, WorkWithVariants } from '@/types/domain';
 
-const WORK_SELECT = `
+// Экспортируется — переиспользуется в lib/queries/dashboard.ts для списка
+// «последние работы» на обзорной странице админки (тот же shape, что и
+// везде в этом файле: категория + фото с уже готовыми public URL).
+export const WORK_SELECT = `
   *,
   category:categories!works_category_id_fkey(*),
   images:work_images!work_images_work_id_fkey(*)
 `;
 
-function attachUrls(row: any): WorkWithUrls {
+export function attachUrls(row: any): WorkWithUrls {
   const images = (row.images ?? [])
     .slice()
     .sort((a: any, b: any) => a.sort_order - b.sort_order)
