@@ -6,6 +6,8 @@ import type { WorkWithUrls } from '@/types/domain';
 // Статичный бейдж статуса — визуально как в WorkStatusToggle (● / ○ + цвет),
 // но без клика/подтверждения: здесь это просто индикатор в списке, менять
 // статус со сводной страницы не нужно (для этого есть /admin/works).
+// Текст "Скрыто" — тот же термин, что и везде в админке для status=draft
+// (WorkStatusToggle, WorkPreviewPopover, фильтр в WorkGrid).
 function StatusDot({ status }: { status: WorkWithUrls['status'] }) {
   const isPublished = status === 'published';
   return (
@@ -14,7 +16,7 @@ function StatusDot({ status }: { status: WorkWithUrls['status'] }) {
         isPublished ? 'text-emerald-400/90' : 'text-ink/40'
       }`}
     >
-      {isPublished ? '● Опубликовано' : '○ Черновик'}
+      {isPublished ? '● Опубликовано' : '○ Скрыто'}
     </span>
   );
 }

@@ -451,7 +451,23 @@ export function WorkForm({ categories, initialData, action, submitLabel, redirec
   // публичную страницу работы (см. пункт 16 в обсуждении редизайна).
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
+  // is_featured/sort_order/status раньше были обычными input'ами С name
+  // прямо внутри {moreOpen && (...)}: пока попап закрыт, их вообще нет в
+  // DOM, и на сохранении формы FormData уходила без этих полей — сервер
+  // (parseWorkFields в lib/actions/works.ts) трактует их отсутствие как
+  // "false"/"0"/"published" и молча ЗАТИРАЕТ реальные значения при каждом
+  // сохранении с закрытым меню (в т.ч. незаметно снимал работу с публикации
+  // или сбрасывал сортировку). Плюс они были на defaultChecked/defaultValue
+  // (неконтролируемые) — при закрытии/повторном открытии попапа React
+  // пересоздавал их из initialData, теряя то, что успели поменять, ещё до
+  // сохранения. Теперь это обычное React-состояние + постоянные hidden-поля
+  // вне попапа (см. ниже, тот же приём, что уже используется для
+  // category_id/category_ids от CategoriesPopover) — значение живёт в форме
+  // независимо от того, открыт попап или нет.
   const [categoryMissing, setCategoryMissing] = useState(false);
+  const [isFeatured, setIsFeatured] = useState<boolean>(initialData?.is_featured ?? false);
+  const [sortOrder, setSortOrder] = useState<number | string>(initialData?.sort_order ?? 0);
+  const [status, setStatus] = useState<'published' | 'draft'>((initialData?.status as 'published' | 'draft') ?? 'published');
   const [priceMode, setPriceMode] = useState(initialData?.price === 'По договорённости' || !initialData?.price ? 'negotiable' : 'fixed');
   const [specs, setSpecs] = useState<Array<{ key: string; value: string }>>(initialData?.specs ? Object.entries(initialData.specs).map(([key, value]) => ({ key, value })) : [{ key: '', value: '' }]);
   const [colorName, setColorName] = useState(initialData?.color_name ?? '');
@@ -586,16 +602,16 @@ export function WorkForm({ categories, initialData, action, submitLabel, redirec
               <div className="absolute right-0 top-full z-40 mt-2 w-64 border border-ink/15 bg-surface p-3 shadow-2xl">
                 <p className="mb-2 text-[10px] uppercase tracking-[0.12em] text-ink/35">Дополнительные настройки</p>
                 <label className="flex items-center gap-2.5 py-1.5 text-sm text-ink/75">
-                  <input type="checkbox" name="is_featured" defaultChecked={initialData?.is_featured} className="h-4 w-4 accent-[rgb(var(--color-ink))]" />
+                  <input type="checkbox" checked={isFeatured} onChange={(e) => setIsFeatured(e.target.checked)} className="h-4 w-4 accent-[rgb(var(--color-ink))]" />
                   Показывать на главной
                 </label>
                 <div className="flex items-center justify-between gap-2 py-1.5">
                   <label htmlFor="sort_order" className="text-sm text-ink/75">Порядок сортировки</label>
-                  <input id="sort_order" name="sort_order" type="number" defaultValue={initialData?.sort_order ?? 0} className="h-9 w-16 border border-ink/15 bg-transparent px-2 text-sm text-ink focus:border-ink/40" />
+                  <input id="sort_order" type="number" value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} className="h-9 w-16 border border-ink/15 bg-transparent px-2 text-sm text-ink focus:border-ink/40" />
                 </div>
                 <div className="mt-2 border-t border-ink/10 pt-2">
-                  <Select name="status" label="Статус" defaultValue={initialData?.status ?? 'published'}>
-                    <option value="published">Опубликовано</option><option value="draft">Черновик</option>
+                  <Select label="Статус" value={status} onChange={(e) => setStatus(e.target.value as 'published' | 'draft')}>
+                    <option value="published">Опубликовано</option><option value="draft">Скрыто</option>
                   </Select>
                 </div>
               </div>
@@ -603,6 +619,14 @@ export function WorkForm({ categories, initialData, action, submitLabel, redirec
           </div>
         </div>
       </div>
+
+      {/* Постоянные hidden-поля для настроек из попапа «⋯» — рендерятся ВСЕГДА,
+          а не только пока moreOpen === true, иначе при сохранении с закрытым
+          попапом эти поля просто отсутствуют в FormData и сервер затирает их
+          дефолтами (см. комментарий у useState выше). */}
+      <input type="hidden" name="is_featured" value={isFeatured ? 'on' : ''} />
+      <input type="hidden" name="sort_order" value={sortOrder} />
+      <input type="hidden" name="status" value={status} />
 
       {/* Дальше структура намеренно повторяет публичную страницу работы
           (app/(public)/works/[slug]/page.tsx): галерея слева, карточка с

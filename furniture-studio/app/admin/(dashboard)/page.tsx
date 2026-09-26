@@ -20,7 +20,7 @@ export default async function AdminOverviewPage() {
       <div className="mt-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard label="Работ опубликовано" value={counts.published} href="/admin/works" />
         <StatCard label="Категорий" value={counts.categories} href="/admin/categories" />
-        <StatCard label="Черновиков" value={counts.drafts} href="/admin/works" />
+        <StatCard label="Скрыто" value={counts.drafts} href="/admin/works" />
         <DecorCatCard />
       </div>
 
