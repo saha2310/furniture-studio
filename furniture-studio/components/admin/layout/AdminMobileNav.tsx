@@ -9,11 +9,56 @@ const LINKS = [
   { href: '/admin', label: 'Обзор' },
   { href: '/admin/works', label: 'Работы' },
   { href: '/admin/categories', label: 'Категории' },
+];
+
+// См. AdminSidebar.tsx — та же логика: редко нужные разделы спрятаны под
+// свёрнутую по умолчанию секцию с предупреждением.
+const ADVANCED_LINKS = [
   { href: '/admin/home', label: 'Главная' },
   { href: '/admin/about', label: 'О мастерской' },
   { href: '/admin/media', label: 'Медиатека' },
   { href: '/admin/settings', label: 'Настройки' },
 ];
+
+function AdvancedSection({ pathname, onNavigate }: { pathname: string; onNavigate: () => void }) {
+  const containsActive = ADVANCED_LINKS.some((link) => pathname.startsWith(link.href));
+  const [open, setOpen] = useState(containsActive);
+
+  return (
+    <div className="border-b border-ink/10 py-2">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex min-h-14 w-full items-center justify-between gap-2 py-2 text-left text-[18px] text-ink/55"
+      >
+        <span>Управление сайтом <span aria-hidden="true">⚠️</span></span>
+        <span className={`text-sm text-ink/35 transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden="true">▾</span>
+      </button>
+
+      {open && (
+        <>
+          <p className="px-0.5 pb-2 text-sm leading-5 text-ink/40">
+            Эти возможности для продвинутых пользователей! Скорее всего для ваших задач не понадобится.
+          </p>
+          {ADVANCED_LINKS.map((link) => {
+            const active = pathname.startsWith(link.href);
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                onClick={onNavigate}
+                className={`flex min-h-14 items-center border-t border-ink/10 py-2 text-[18px] transition-colors active:bg-ink/[0.04] ${active ? 'text-ink' : 'text-ink/55'}`}
+              >
+                <span className="min-w-0 truncate">{link.label}</span>
+              </Link>
+            );
+          })}
+        </>
+      )}
+    </div>
+  );
+}
 
 export function AdminMobileNav() {
   const [open, setOpen] = useState(false);
@@ -90,6 +135,9 @@ export function AdminMobileNav() {
                 </Link>
               );
             })}
+
+            <AdvancedSection pathname={pathname} onNavigate={() => setOpen(false)} />
+
             <div className="mt-auto border-t border-ink/10 pt-5">
               <Link href="/" target="_blank" onClick={() => setOpen(false)} className="flex min-h-12 items-center text-sm text-ink/60">На сайт ↗</Link>
               <form action={logout}>
@@ -102,3 +150,4 @@ export function AdminMobileNav() {
     </>
   );
 }
+

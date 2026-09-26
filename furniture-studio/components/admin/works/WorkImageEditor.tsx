@@ -5,6 +5,7 @@ import { Fragment, useEffect, useMemo, useRef, useState, useTransition } from 'r
 import type { WorkImageWithUrl } from '@/types/domain';
 import { ACCEPTED_IMAGE_TYPES, MAX_IMAGE_SIZE_BYTES, workImageUrl } from '@/lib/utils/image';
 import { convertToWebp } from '@/lib/utils/image-client';
+import { generateId } from '@/lib/utils/id';
 import { createBrowserSupabaseClient } from '@/lib/supabase/browser';
 import { ImageCropDialog } from '@/components/admin/shared/ImageCropDialog';
 import { CatalogImageSettingsDialog } from '@/components/admin/shared/CatalogImageSettingsDialog';
@@ -123,7 +124,7 @@ export function WorkImageEditor({
         // изменения» внизу формы, как и любое другое фото.
         const result = await copyMediaAssetFile(workId, asset.path);
         if (!result.success || !result.path) { setLibraryError(result.message); return; }
-        const id = `new:${crypto.randomUUID()}`;
+        const id = `new:${generateId()}`;
         const added: PendingNewImage = { id, url: workImageUrl(result.path), status: 'done', path: result.path, originalPath: result.path };
         setNewImages((items) => [...items, added]);
         setSelectedCover((current) => current ?? id);
@@ -146,7 +147,7 @@ export function WorkImageEditor({
   // нет — используем случайный временный префикс только как имя папки в
   // Storage; на итоговую связь с записью в work_images это никак не влияет
   // (там просто хранится сам путь, а не то, из какой он папки).
-  const folderIdRef = useRef<string>(workId || `pending-${crypto.randomUUID()}`);
+  const folderIdRef = useRef<string>(workId || `pending-${generateId()}`);
 
   const newInputRef = useRef<HTMLInputElement>(null);
   const [newImages, setNewImages] = useState<PendingNewImage[]>([]);
@@ -226,7 +227,7 @@ export function WorkImageEditor({
     const incoming = Array.from(list);
     const valid = incoming.filter((file) => ACCEPTED_IMAGE_TYPES.includes(file.type) && file.size <= MAX_IMAGE_SIZE_BYTES);
     if (valid.length !== incoming.length) setError(`Некоторые файлы не добавлены. Разрешены JPEG, PNG, WebP до ${MAX_MB} МБ.`);
-    const added: Array<PendingNewImage & { file: File }> = valid.map((file) => ({ id: `new:${crypto.randomUUID()}`, file, url: URL.createObjectURL(file), status: 'uploading' }));
+    const added: Array<PendingNewImage & { file: File }> = valid.map((file) => ({ id: `new:${generateId()}`, file, url: URL.createObjectURL(file), status: 'uploading' }));
     if (added.length === 0) return;
     setNewImages((items) => [...items, ...added]);
     if (!selectedCover && added[0]) setSelectedCover(added[0].id);

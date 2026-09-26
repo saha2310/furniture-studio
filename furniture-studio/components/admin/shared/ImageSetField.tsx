@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react';
 import { siteAssetUrl, workImageUrl, MAX_IMAGE_SIZE_BYTES } from '@/lib/utils/image';
 import { convertToWebp } from '@/lib/utils/image-client';
+import { generateId } from '@/lib/utils/id';
 import { MediaLibraryPicker } from './MediaLibraryPicker';
 
 type Slot = { kind: 'existing'; path: string; bucket: 'works' | 'site' } | { kind: 'new'; id: string; file: File; url: string };
@@ -61,7 +62,7 @@ export function ImageSetField({
       // Как и в остальных полях загрузки — конвертация в WebP обязательна
       // для любого файла, попадающего в эту галерею. См. lib/utils/image-client.ts.
       const optimized = await Promise.all(valid.map((file) => convertToWebp(file)));
-      const added: Slot[] = optimized.map((file) => ({ kind: 'new', id: crypto.randomUUID(), file, url: URL.createObjectURL(file) }));
+      const added: Slot[] = optimized.map((file) => ({ kind: 'new', id: generateId(), file, url: URL.createObjectURL(file) }));
       setSlots((prev) => {
         const next = [...prev, ...added];
         syncFileInput(next);

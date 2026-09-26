@@ -1,11 +1,11 @@
 import Link from 'next/link';
-import { getAllWorksAdmin } from '@/lib/queries/works';
+import { getAllWorksAdmin, getCategories } from '@/lib/queries/works';
 import { WorkGrid } from '@/components/admin/works/WorkGrid';
 import { EmptyState } from '@/components/admin/shared/EmptyState';
 import { PageHeader } from '@/components/admin/shared/PageHeader';
 
 export default async function AdminWorksPage() {
-  const works = await getAllWorksAdmin();
+  const [works, categories] = await Promise.all([getAllWorksAdmin(), getCategories()]);
 
   return (
     <div>
@@ -23,7 +23,7 @@ export default async function AdminWorksPage() {
         {works.length === 0 ? (
           <EmptyState title="Работ пока нет" description="Добавьте первую работу, чтобы она появилась на сайте." />
         ) : (
-          <WorkGrid works={works} />
+          <WorkGrid works={works} categories={categories} />
         )}
       </div>
     </div>

@@ -1,8 +1,10 @@
 'use client';
 
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createCategory } from '@/lib/actions/categories';
 import { slugify } from '@/lib/utils/slug';
+import { groupCategoriesByParent } from '@/lib/utils/categoryTree';
+import { CategoryTreeRow, CategoryTreeSearch } from '@/components/admin/shared/CategoryTreeList';
 import type { Category } from '@/types/domain';
 
 // Компактный редактор категорий работы: вместо постоянно видимого выпадающего
@@ -48,8 +50,8 @@ export function CategoriesPopover({
 
   const primary = categories.find((c) => c.id === categoryId);
   const extra = extraCategoryIds.map((id) => categories.find((c) => c.id === id)).filter((c): c is Category => !!c);
-  const normalizedQuery = query.trim().toLowerCase();
-  const filtered = categories.filter((c) => !normalizedQuery || c.name.toLowerCase().includes(normalizedQuery));
+  const tree = useMemo(() => groupCategoriesByParent(categories), [categories]);
+  const filteredTree = useMemo(() => CategoryTreeSearch(tree, query), [tree, query]);
 
   async function submitNewCategory() {
     const name = newName.trim();
@@ -103,36 +105,65 @@ export function CategoriesPopover({
             className="mb-2 h-10 w-full border border-ink/15 bg-transparent px-3 text-sm text-ink placeholder:text-ink/35 focus:border-ink/40"
           />
           <div className="max-h-64 overflow-y-auto">
-            {filtered.length === 0 && <p className="px-1 py-3 text-xs text-ink/40">Ничего не найдено.</p>}
-            {filtered.map((category) => {
-              const isPrimary = category.id === categoryId;
-              const isExtra = extraCategoryIds.includes(category.id);
+            {filteredTree.length === 0 && <p className="px-1 py-3 text-xs text-ink/40">Ничего не найдено.</p>}
+            {filteredTree.map((parent, index) => {
+              // Клик по звезде/ромбу — тот же переключатель «дополнительная»,
+              // что раньше был на чекбоксе (isPrimary || isExtra ⇒ заполнена).
+              // Отдельная точка справа — как и раньше, единственный способ
+              // назначить категорию основной.
+              const parentIsPrimary = parent.id === categoryId;
+              const parentIsExtra = extraCategoryIds.includes(parent.id);
               return (
-                <div key={category.id} className="flex items-center gap-2.5 px-1 py-1.5 text-sm text-ink/80 hover:bg-ink/5">
-                  <button
-                    type="button"
-                    title="Сделать основной категорией"
-                    onClick={() => onPrimaryChange(category.id)}
-                    className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${isPrimary ? 'border-ink bg-ink' : 'border-ink/25'}`}
-                    aria-pressed={isPrimary}
-                  >
-                    {isPrimary && <span className="h-1.5 w-1.5 rounded-full bg-canvas" />}
-                  </button>
-                  <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5">
-                    <input
-                      type="checkbox"
-                      checked={isPrimary || isExtra}
-                      disabled={isPrimary}
-                      onChange={() => onToggleExtra(category.id)}
-                      className="h-3.5 w-3.5 shrink-0 accent-[rgb(var(--color-ink))]"
-                    />
-                    <span className="truncate">{category.name}</span>
-                  </label>
+                <div key={parent.id} className={index > 0 ? 'mt-3' : ''}>
+                  <CategoryTreeRow
+                    category={parent}
+                    level={0}
+                    selected={parentIsPrimary || parentIsExtra}
+                    // Основную категорию снять кликом по звезде нельзя — как и
+                    // раньше, чекбокс был disabled для неё; менять основную
+                    // можно только через отдельную точку.
+                    onSelect={() => { if (!parentIsPrimary) onToggleExtra(parent.id); }}
+                    trailing={
+                      <button
+                        type="button"
+                        title="Сделать основной категорией"
+                        onClick={() => onPrimaryChange(parent.id)}
+                        className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${parentIsPrimary ? 'border-ink bg-ink' : 'border-ink/25'}`}
+                        aria-pressed={parentIsPrimary}
+                      >
+                        {parentIsPrimary && <span className="h-1.5 w-1.5 rounded-full bg-canvas" />}
+                      </button>
+                    }
+                  />
+                  {parent.children.map((child) => {
+                    const childIsPrimary = child.id === categoryId;
+                    const childIsExtra = extraCategoryIds.includes(child.id);
+                    return (
+                      <CategoryTreeRow
+                        key={child.id}
+                        category={child}
+                        level={1}
+                        selected={childIsPrimary || childIsExtra}
+                        onSelect={() => { if (!childIsPrimary) onToggleExtra(child.id); }}
+                        trailing={
+                          <button
+                            type="button"
+                            title="Сделать основной категорией"
+                            onClick={() => onPrimaryChange(child.id)}
+                            className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${childIsPrimary ? 'border-ink bg-ink' : 'border-ink/25'}`}
+                            aria-pressed={childIsPrimary}
+                          >
+                            {childIsPrimary && <span className="h-1.5 w-1.5 rounded-full bg-canvas" />}
+                          </button>
+                        }
+                      />
+                    );
+                  })}
                 </div>
               );
             })}
           </div>
-          <p className="mt-2 text-[10px] leading-4 text-ink/30">● — основная категория (одна). Галочка — дополнительная.</p>
+          <p className="mt-2 text-[10px] leading-4 text-ink/30">● — основная категория (одна). Закрашенная звезда/ромб — дополнительная.</p>
 
           <div className="mt-3 border-t border-ink/10 pt-3">
             <div className="flex items-center gap-2">

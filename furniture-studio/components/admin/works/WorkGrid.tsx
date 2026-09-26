@@ -7,7 +7,8 @@ import { deleteWork } from '@/lib/actions/works';
 import { ConfirmDialog } from '@/components/admin/shared/ConfirmDialog';
 import { WorkStatusToggle } from './WorkStatusToggle';
 import { WorkPreviewPopover } from './WorkPreviewPopover';
-import type { WorkWithUrls } from '@/types/domain';
+import { CategoryFilterPopover } from './CategoryFilterPopover';
+import type { Category, WorkWithUrls } from '@/types/domain';
 
 type SortKey = 'default' | 'newest' | 'oldest' | 'title-asc' | 'title-desc';
 
@@ -105,13 +106,23 @@ function WorkCard({ work, groupSiblings }: { work: WorkWithUrls; groupSiblings: 
   );
 }
 
-export function WorkGrid({ works }: { works: WorkWithUrls[] }) {
+export function WorkGrid({ works, categories }: { works: WorkWithUrls[]; categories: Category[] }) {
   const [query, setQuery] = useState('');
-  const [category, setCategory] = useState('all');
+  const [categoryId, setCategoryId] = useState<string | null>(null);
   const [status, setStatus] = useState('all');
   const [sort, setSort] = useState<SortKey>('default');
 
-  const categories = useMemo(() => Array.from(new Set(works.map((work) => work.category?.name).filter(Boolean))).sort(), [works]);
+  // Категория верхнего уровня в фильтре означает «эта категория ИЛИ любая из
+  // её подкатегорий» — иначе выбор родителя из выпадающего дерева ничего бы
+  // не находил для работ, у которых стоит именно подкатегория.
+  const categoryIdsToMatch = useMemo(() => {
+    if (!categoryId) return null;
+    const withChildren = new Set<string>([categoryId]);
+    for (const c of categories) {
+      if (c.parent_id === categoryId) withChildren.add(c.id);
+    }
+    return withChildren;
+  }, [categoryId, categories]);
 
   // Группируем весь (нефильтрованный) список по group_id один раз — так
   // счётчик «N цветов» на карточке не меняется в зависимости от текущего
@@ -132,12 +143,12 @@ export function WorkGrid({ works }: { works: WorkWithUrls[] }) {
     const list = works.filter((work) => {
       const text = `${work.title} ${work.slug} ${work.category?.name ?? ''}`.toLowerCase();
       const matchesQuery = !query.trim() || text.includes(query.trim().toLowerCase());
-      const matchesCategory = category === 'all' || work.category?.name === category;
+      const matchesCategory = !categoryIdsToMatch || (work.category_id ? categoryIdsToMatch.has(work.category_id) : false);
       const matchesStatus = status === 'all' || work.status === status;
       return matchesQuery && matchesCategory && matchesStatus;
     });
     return list.slice().sort(SORTERS[sort]);
-  }, [works, query, category, status, sort]);
+  }, [works, query, categoryIdsToMatch, status, sort]);
 
   return (
     <div className="space-y-4">
@@ -148,10 +159,7 @@ export function WorkGrid({ works }: { works: WorkWithUrls[] }) {
           placeholder="Поиск: название, URL, категория"
           className="h-9 min-w-[180px] flex-1 border border-ink/10 bg-canvas px-3 text-sm text-ink placeholder:text-ink/30 focus:border-ink/30"
         />
-        <select value={category} onChange={(e) => setCategory(e.target.value)} className="h-9 border border-ink/10 bg-canvas px-2 text-sm text-ink">
-          <option value="all">Все категории</option>
-          {categories.map((name) => <option key={name} value={name}>{name}</option>)}
-        </select>
+        <CategoryFilterPopover categories={categories} selectedId={categoryId} onChange={setCategoryId} />
         <select value={status} onChange={(e) => setStatus(e.target.value)} className="h-9 border border-ink/10 bg-canvas px-2 text-sm text-ink">
           <option value="all">Все статусы</option>
           <option value="published">Опубликовано</option>

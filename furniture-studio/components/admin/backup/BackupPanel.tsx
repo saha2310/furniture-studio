@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { createBrowserSupabaseClient } from '@/lib/supabase/browser';
+import { generateId } from '@/lib/utils/id';
 import { ConfirmDialog } from '@/components/admin/shared/ConfirmDialog';
 import { FormStatus } from '@/components/ui/FormStatus';
 import type { ImportMode, ImportSummary } from '@/lib/backup/types';
@@ -54,7 +55,7 @@ export function BackupPanel() {
       // серверной функции — см. lib/backup/README.md, почему это важно для
       // архивов с фото на Vercel.
       const supabase = createBrowserSupabaseClient();
-      const storagePath = `restore/${Date.now()}-${crypto.randomUUID()}.zip`;
+      const storagePath = `restore/${Date.now()}-${generateId()}.zip`;
 
       const { error: uploadError } = await supabase.storage
         .from('backups')
