@@ -361,7 +361,24 @@ export async function getAllWorksAdmin(): Promise<WorkWithUrls[]> {
     console.error('getAllWorksAdmin failed', error.message);
     return [];
   }
-  return (data ?? []).map(attachUrls);
+  const works = (data ?? []).map(attachUrls);
+
+  // Дополнительные категории (work_categories) — иначе фильтр по подкатегории
+  // в списке работ видит только основную category_id и не находит товары,
+  // у которых нужная подкатегория проставлена как дополнительная (см. ту же
+  // логику в categoryMembershipOrFilter выше, для публичного каталога).
+  const { data: extraRows, error: extraError } = await supabase.from('work_categories').select('work_id, category_id');
+  if (extraError) {
+    console.error('getAllWorksAdmin: work_categories query failed (миграция применена?)', extraError.message);
+    return works;
+  }
+  const extraByWork = new Map<string, string[]>();
+  for (const row of extraRows ?? []) {
+    const list = extraByWork.get(row.work_id) ?? [];
+    list.push(row.category_id);
+    extraByWork.set(row.work_id, list);
+  }
+  return works.map((work) => ({ ...work, extraCategoryIds: extraByWork.get(work.id) ?? [] }));
 }
 
 export async function getWorkByIdAdmin(id: string): Promise<WorkWithUrls | null> {

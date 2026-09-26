@@ -53,6 +53,28 @@ export function CategoriesPopover({
   const tree = useMemo(() => groupCategoriesByParent(categories), [categories]);
   const filteredTree = useMemo(() => CategoryTreeSearch(tree, query), [tree, query]);
 
+  // Единственный обработчик клика по звезде/ромбу — больше нет отдельной
+  // точки «сделать основной»: основная категория назначается автоматически.
+  //   • категория не выбрана вовсе → выбираем; если основной ещё нет, она
+  //     сразу становится основной, иначе добавляется как дополнительная;
+  //   • категория уже дополнительная → снимается (полностью убирается);
+  //   • категория основная → снять её напрямую нельзя, если это единственная
+  //     выбранная (основная категория обязательна), но если есть ещё
+  //     дополнительные — первая из них становится новой основной, а прежняя
+  //     основная выпадает из выбора вместе с этим кликом.
+  function handleToggle(id: string) {
+    if (id === categoryId) {
+      const nextPrimary = extraCategoryIds[0];
+      if (nextPrimary) onPrimaryChange(nextPrimary);
+      return;
+    }
+    if (extraCategoryIds.includes(id)) {
+      onToggleExtra(id);
+      return;
+    }
+    if (!categoryId) onPrimaryChange(id); else onToggleExtra(id);
+  }
+
   async function submitNewCategory() {
     const name = newName.trim();
     if (!name) { setCreateError('Введите название категории.'); return; }
@@ -107,10 +129,6 @@ export function CategoriesPopover({
           <div className="max-h-64 overflow-y-auto">
             {filteredTree.length === 0 && <p className="px-1 py-3 text-xs text-ink/40">Ничего не найдено.</p>}
             {filteredTree.map((parent, index) => {
-              // Клик по звезде/ромбу — тот же переключатель «дополнительная»,
-              // что раньше был на чекбоксе (isPrimary || isExtra ⇒ заполнена).
-              // Отдельная точка справа — как и раньше, единственный способ
-              // назначить категорию основной.
               const parentIsPrimary = parent.id === categoryId;
               const parentIsExtra = extraCategoryIds.includes(parent.id);
               return (
@@ -119,21 +137,7 @@ export function CategoriesPopover({
                     category={parent}
                     level={0}
                     selected={parentIsPrimary || parentIsExtra}
-                    // Основную категорию снять кликом по звезде нельзя — как и
-                    // раньше, чекбокс был disabled для неё; менять основную
-                    // можно только через отдельную точку.
-                    onSelect={() => { if (!parentIsPrimary) onToggleExtra(parent.id); }}
-                    trailing={
-                      <button
-                        type="button"
-                        title="Сделать основной категорией"
-                        onClick={() => onPrimaryChange(parent.id)}
-                        className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${parentIsPrimary ? 'border-ink bg-ink' : 'border-ink/25'}`}
-                        aria-pressed={parentIsPrimary}
-                      >
-                        {parentIsPrimary && <span className="h-1.5 w-1.5 rounded-full bg-canvas" />}
-                      </button>
-                    }
+                    onSelect={() => handleToggle(parent.id)}
                   />
                   {parent.children.map((child) => {
                     const childIsPrimary = child.id === categoryId;
@@ -144,18 +148,7 @@ export function CategoriesPopover({
                         category={child}
                         level={1}
                         selected={childIsPrimary || childIsExtra}
-                        onSelect={() => { if (!childIsPrimary) onToggleExtra(child.id); }}
-                        trailing={
-                          <button
-                            type="button"
-                            title="Сделать основной категорией"
-                            onClick={() => onPrimaryChange(child.id)}
-                            className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${childIsPrimary ? 'border-ink bg-ink' : 'border-ink/25'}`}
-                            aria-pressed={childIsPrimary}
-                          >
-                            {childIsPrimary && <span className="h-1.5 w-1.5 rounded-full bg-canvas" />}
-                          </button>
-                        }
+                        onSelect={() => handleToggle(child.id)}
                       />
                     );
                   })}
@@ -163,7 +156,7 @@ export function CategoriesPopover({
               );
             })}
           </div>
-          <p className="mt-2 text-[10px] leading-4 text-ink/30">● — основная категория (одна). Закрашенная звезда/ромб — дополнительная.</p>
+          <p className="mt-2 text-[10px] leading-4 text-ink/30">Нажмите на звезду/ромб, чтобы выбрать категорию. Основной становится первая выбранная.</p>
 
           <div className="mt-3 border-t border-ink/10 pt-3">
             <div className="flex items-center gap-2">

@@ -143,7 +143,10 @@ export function WorkGrid({ works, categories }: { works: WorkWithUrls[]; categor
     const list = works.filter((work) => {
       const text = `${work.title} ${work.slug} ${work.category?.name ?? ''}`.toLowerCase();
       const matchesQuery = !query.trim() || text.includes(query.trim().toLowerCase());
-      const matchesCategory = !categoryIdsToMatch || (work.category_id ? categoryIdsToMatch.has(work.category_id) : false);
+      const matchesCategory =
+        !categoryIdsToMatch ||
+        (work.category_id ? categoryIdsToMatch.has(work.category_id) : false) ||
+        (work.extraCategoryIds ?? []).some((id) => categoryIdsToMatch.has(id));
       const matchesStatus = status === 'all' || work.status === status;
       return matchesQuery && matchesCategory && matchesStatus;
     });
