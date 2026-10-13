@@ -95,7 +95,7 @@ export async function startMfaEnrollment(): Promise<MfaEnrollStart> {
   }
 
   const { data, error } = await supabase.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'Админка' });
-  if (error || !data) {
+  if (error || !data || data.type !== 'totp') {
     return {
       ok: false,
       message: `Не удалось создать ключ${error?.message ? `: ${error.message}` : ''}. Проверьте, что в Supabase (Authentication → Multi-Factor) включён TOTP.`,
