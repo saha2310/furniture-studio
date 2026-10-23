@@ -192,7 +192,7 @@ export function WorkGallery({ images, title }: { images: WorkImageWithUrl[]; tit
       <div className="group relative min-w-0 overflow-hidden bg-surface">
         <div className="relative aspect-[3/2] cursor-zoom-in overflow-hidden lg:aspect-[16/10]" onClick={openLightbox}>
           <div className="absolute inset-0 flex" style={{ transform: `translateX(-${trackIndex * 100}%)`, transition: transition ? 'transform 600ms cubic-bezier(.2,.7,.2,1)' : 'none' }} onTransitionEnd={handleTrackEnd}>
-            {slides.map((img, index) => <div className="relative h-full w-full shrink-0 grow-0 basis-full" key={`${img.id}-${index}`}><Image src={img.url} alt={img.alt_text || title} fill {...(index === trackIndex ? { priority: true } : { loading: 'eager' as const })} sizes="(min-width: 1024px) 55vw, 100vw" className="object-cover" unoptimized /></div>)}
+            {slides.map((img, index) => <div className="relative h-full w-full shrink-0 grow-0 basis-full" key={`${img.id}-${index}`}><Image src={img.url} alt={img.alt_text || title} fill {...(index === trackIndex ? { priority: true } : { loading: 'eager' as const })} sizes="(min-width: 1024px) 55vw, 100vw" quality={85} className="object-cover" /></div>)}
           </div>
         </div>
         {images.length > 1 && (
@@ -245,24 +245,18 @@ export function WorkGallery({ images, title }: { images: WorkImageWithUrl[]; tit
             </div>
           )}
           {/*
-            Раньше здесь был голый <img> с прямой ссылкой на файл в Supabase
-            Storage — в обход next/image, а значит без переформатирования под
-            браузер и без учёта реального размера экрана.
-            Сейчас — `next/image` с `unoptimized`: файл в Storage уже WebP
-            (конвертация происходит при любой загрузке, см.
-            lib/utils/image-client.ts), поэтому прогонять его ещё раз через
-            оптимизатор Next/Vercel — значит пересжимать уже сжатый WebP
-            повторно, теряя качество без выгоды в размере. Именно в полноэкранном
-            просмотре, где вес фото ощущается сильнее всего, это особенно
-            критично: пользователь открывает фото, чтобы разглядеть детали, а не
-            чтобы увидеть его в третий раз пересжатым. `unoptimized` отдаёт
-            браузеру ровно тот файл, что лежит в Storage — гарантированно WebP,
-            без повторного перекодирования. `width`/`height` вместо `fill` —
-            сознательный выбор: этому месту нужен контроль размера через style
-            (max-h/max-w + перетаскивание/зум трансформом), а `fill` требует,
-            чтобы контейнер сам знал свой размер, чего тут нет. Задаём
-            приблизительный квадратный intrinsic-размер как подсказку — реальный
-            кадр всё равно определяется через object-contain и className ниже.
+            Фото идёт через `next/image` (/_next/image на нашем домене), а не
+            напрямую из Supabase Storage. Раньше здесь стоял `unoptimized`:
+            браузер сам ходил на *.supabase.co, и в сетях, где соединение с
+            Supabase/Cloudflare обрывается на середине файла, фото приходило
+            обрезанным ("Image corrupt or truncated") — белый прямоугольник
+            вместо снимка. Через оптимизатор файл забирает наш сервер, а
+            браузер получает его с нашего домена (как и миниатюры).
+            Чтобы повторное сжатие WebP не вредило деталям при зуме,
+            quality=90, а `sizes="100vw"` даёт браузеру выбрать ширину под
+            реальный экран (с учётом DPR). `width`/`height` вместо `fill` —
+            сознательный выбор: размер задаётся через className/style
+            (max-h/max-w + перетаскивание/зум трансформом).
           */}
           <Image
             src={images[activeIndex].url}
@@ -272,7 +266,8 @@ export function WorkGallery({ images, title }: { images: WorkImageWithUrl[]; tit
             onError={() => setLightboxImageReady(true)}
             width={2400}
             height={2400}
-            unoptimized
+            sizes="100vw"
+            quality={90}
             className={`h-auto max-h-[calc(100vh-7rem)] w-auto max-w-[calc(100vw-2rem)] select-none object-contain transition-opacity duration-300 sm:max-h-[calc(100vh-6rem)] sm:max-w-[calc(100vw-4rem)] ${lightboxImageReady ? 'opacity-100' : 'opacity-0'}`}
             style={{ transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`, transition: drag.current ? 'none' : 'transform 180ms ease-out', cursor: scale > 1 ? 'grab' : 'zoom-in' }}
           />

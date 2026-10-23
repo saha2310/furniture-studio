@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useEffect, useState } from 'react';
 
 interface CarouselImage {
@@ -29,8 +30,8 @@ export function ContactCarousel({ images }: { images: CarouselImage[] }) {
     <div className="contact-carousel-root absolute inset-0">
       {images.map((image, index) => (
         <div key={image.url} className={`contact-carousel-slide absolute inset-0 ${index === active ? 'is-active' : ''}`}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={image.url} alt={image.alt} className="h-full w-full object-cover" />
+          {/* Через next/image, а не голый <img>: файл забирает наш сервер, а не браузер напрямую у Supabase. */}
+          <Image src={image.url} alt={image.alt} fill sizes="(min-width: 1024px) 50vw, 100vw" priority={index === 0} className="object-cover" />
         </div>
       ))}
       {images.length > 1 && (
