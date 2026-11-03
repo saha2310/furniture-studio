@@ -8,7 +8,7 @@ export function FeaturedWorks({ works, title }: { works: WorkWithVariants[]; tit
   return (
     <section className="border-b border-ink/10 bg-canvas">
       <div className="container-studio py-24 lg:py-28">
-        <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+        <div data-reveal className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="eyebrow">избранное</p>
             <h2 className="display-title mt-5 max-w-[9ch]">{title || 'Проекты'}</h2>
@@ -17,7 +17,7 @@ export function FeaturedWorks({ works, title }: { works: WorkWithVariants[]; tit
             Все работы <span className="transition-transform duration-300 group-hover:translate-x-1">→</span>
           </Link>
         </div>
-        <div className="mt-14 grid gap-px border-l border-t border-ink/10 bg-ink/10 lg:grid-cols-2 xl:grid-cols-4">
+        <div data-reveal-stagger className="mt-14 grid gap-px border-l border-t border-ink/10 bg-ink/10 lg:grid-cols-2 xl:grid-cols-4">
           {works.map((work, i) => <WorkCard key={work.id} work={work} priority={i === 0} />)}
         </div>
       </div>

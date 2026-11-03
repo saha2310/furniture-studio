@@ -20,6 +20,13 @@ export function formatDate(iso: string): string {
   });
 }
 
+/** «+7 900 000-00-00, +7 910 111-22-33» → ['+7 900 000-00-00', '+7 910 111-22-33'].
+ *  Разделители: запятая, точка с запятой, перенос строки; также пробел
+ *  перед «+» — чтобы «+79100000000 +79000000000» тоже стало двумя номерами. */
+export function splitPhones(value: string | null | undefined): string[] {
+  return (value ?? '').split(/[,;\n]|\s+(?=\+)/).map((phone) => phone.trim()).filter(Boolean);
+}
+
 export function formatPhoneForHref(phone: string): string {
   return `tel:${phone.replace(/[^0-9+]/g, '')}`;
 }

@@ -36,14 +36,14 @@ export function Hero({ content }: { content?: HeroContent | null }) {
 
       <div className="light-image-content container-studio relative z-10 flex min-h-[780px] flex-col justify-between pb-9 pt-36 sm:min-h-[820px] lg:min-h-screen lg:pb-12 lg:pt-40">
         <div className="max-w-[780px]">
-          <p className="eyebrow mb-7 flex items-center gap-4 text-ink/55">
+          <p className="hero-in eyebrow mb-7 flex items-center gap-4 text-ink/55" style={{ animationDelay: '80ms' }}>
             <span className="h-px w-10 bg-ink/35" /> мебель на заказ
           </p>
-          <h1 className="editorial-title max-w-[10ch] text-ink">{data.title || FALLBACK.title}</h1>
-          <div className="mt-8 max-w-[34rem] border-l border-ink/20 pl-5 text-sm leading-6 text-ink/70">
+          <h1 className="hero-in editorial-title max-w-[10ch] text-ink" style={{ animationDelay: '180ms' }}>{data.title || FALLBACK.title}</h1>
+          <div className="hero-in mt-8 max-w-[34rem] border-l border-ink/20 pl-5 text-sm leading-6 text-ink/70" style={{ animationDelay: '320ms' }}>
             {data.description}
           </div>
-          <div className="mt-8 flex flex-wrap gap-3">
+          <div className="hero-in mt-8 flex flex-wrap gap-3" style={{ animationDelay: '440ms' }}>
             <Link href={data.primaryCtaHref} className="reference-button liquid-glass-on-image">
               {data.primaryCtaLabel}
             </Link>

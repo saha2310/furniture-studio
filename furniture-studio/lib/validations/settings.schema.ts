@@ -16,7 +16,7 @@ export function isSafeHref(value: string): boolean {
 
 export const siteSettingsSchema = z.object({
   company_name: z.string().trim().min(1).max(120).optional().or(z.literal('')),
-  phone: z.string().trim().max(40).optional().or(z.literal('')),
+  phone: z.string().trim().max(200).optional().or(z.literal('')),
   email: z.string().trim().email('Некорректный email').optional().or(z.literal('')),
   address: z.string().trim().max(200).optional().or(z.literal('')),
   seo_default_title: z.string().trim().max(120).optional().or(z.literal('')),

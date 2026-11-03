@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { getSiteSettings, getContactLinks, getMenuItems } from '@/lib/queries/site';
 import { SocialIcon } from './SocialIcon';
 import { FooterSofaDrawing } from './FooterSofaDrawing';
-import { formatPhoneForHref } from '@/lib/utils/format';
+import { formatPhoneForHref, splitPhones } from '@/lib/utils/format';
 
 export async function Footer({ className = '' }: { className?: string }) {
   const [settings, contactLinks, menu] = await Promise.all([getSiteSettings(), getContactLinks(), getMenuItems()]);
@@ -62,7 +62,9 @@ export async function Footer({ className = '' }: { className?: string }) {
           <div>
             <p className="eyebrow">Контакты</p>
             <div className="mt-5 flex flex-col gap-3 text-sm text-espresso">
-              {settings?.phone && <a href={formatPhoneForHref(settings.phone)} className="hover:text-ink">{settings.phone}</a>}
+              {splitPhones(settings?.phone).map((phone) => (
+                <a key={phone} href={formatPhoneForHref(phone)} className="hover:text-ink">{phone}</a>
+              ))}
               {settings?.email && <a href={`mailto:${settings.email}`} className="hover:text-ink">{settings.email}</a>}
               {settings?.address && <p>{settings.address}</p>}
             </div>

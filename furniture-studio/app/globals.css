@@ -144,9 +144,13 @@ h4 {
   @apply font-sans font-normal;
 }
 
+/* Выделение текста. Раньше цвет текста при выделении принудительно ставился
+   в --color-ink: на светлых блоках (кнопки, светлые плашки в тёмной теме и
+   наоборот) текст становился того же цвета, что и фон, и пропадал. Теперь
+   текст сохраняет свой цвет, а подложка — тёплый полупрозрачный тон,
+   который заметен и на тёмном, и на светлом фоне. */
 ::selection {
-  background: rgba(var(--color-ink) / 0.18);
-  color: rgb(var(--color-ink));
+  background: rgba(176 132 84 / 0.45);
 }
 
 button,
@@ -214,6 +218,47 @@ select:focus-visible,
     transform: translateX(0);
   }
 }
+
+/* ── Анимации появления ─────────────────────────────────────────────────
+   1) .page-enter — мягкое проявление страницы при переходе (app/(public)/template.tsx).
+      Только opacity: transform на обёртке сломал бы position: fixed внутри.
+   2) .hero-in — заголовок, текст и кнопки первого экрана выезжают по очереди.
+   3) data-reveal / data-reveal-stagger — блоки появляются при прокрутке
+      (components/motion/ScrollReveal.tsx). Прячутся только при html.motion-ok,
+      поэтому без JS и при «уменьшении движения» всё видно сразу. */
+@keyframes page-enter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.page-enter {
+  animation: page-enter 420ms ease-out both;
+}
+
+.hero-in {
+  animation: contact-fade-up 900ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.motion-ok [data-reveal],
+.motion-ok [data-reveal-stagger] > * {
+  opacity: 0;
+  transform: translateY(28px);
+  transition:
+    opacity 800ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 800ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.motion-ok [data-reveal].is-revealed,
+.motion-ok [data-reveal-stagger].is-revealed > * {
+  opacity: 1;
+  transform: none;
+}
+
+.motion-ok [data-reveal-stagger].is-revealed > :nth-child(2) { transition-delay: 90ms; }
+.motion-ok [data-reveal-stagger].is-revealed > :nth-child(3) { transition-delay: 180ms; }
+.motion-ok [data-reveal-stagger].is-revealed > :nth-child(4) { transition-delay: 270ms; }
+.motion-ok [data-reveal-stagger].is-revealed > :nth-child(5) { transition-delay: 360ms; }
+.motion-ok [data-reveal-stagger].is-revealed > :nth-child(n + 6) { transition-delay: 420ms; }
 
 .contact-photo-in {
   animation: contact-photo-in 1200ms cubic-bezier(0.16, 1, 0.3, 1) both;

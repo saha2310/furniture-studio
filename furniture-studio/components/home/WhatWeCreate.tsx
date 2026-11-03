@@ -11,7 +11,7 @@ export function WhatWeCreate({ categories, title }: { categories: CategoryWithCh
 
   return (
     <section className="border-b border-ink/10 bg-surface">
-      <div className="container-studio grid gap-12 py-24 lg:grid-cols-[.75fr,1.5fr] lg:gap-20">
+      <div data-reveal-stagger className="container-studio grid gap-12 py-24 lg:grid-cols-[.75fr,1.5fr] lg:gap-20">
         <div>
           <p className="eyebrow">направления</p>
           <h2 className="display-title mt-5 max-w-[10ch]">{title || 'Что мы создаём'}</h2>
@@ -22,7 +22,7 @@ export function WhatWeCreate({ categories, title }: { categories: CategoryWithCh
           линиями-границами) — иначе тень и подъём соседних карточек
           налезали бы друг на друга.
         */}
-        <div className="grid gap-4 sm:grid-cols-2 sm:gap-5">
+        <div data-reveal-stagger className="grid gap-4 sm:grid-cols-2 sm:gap-5">
           {categories.map((category, index) => (
             <CategoryTile
               key={category.id}

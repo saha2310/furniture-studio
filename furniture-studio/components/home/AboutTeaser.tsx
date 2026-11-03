@@ -3,7 +3,7 @@ import Link from 'next/link';
 export function AboutTeaser({ title, subtitle }: { title?: string | null; subtitle?: string | null }) {
   return (
     <section className="border-b border-ink/10 bg-canvas">
-      <div className="container-studio grid gap-12 py-24 lg:grid-cols-[.8fr,1.2fr] lg:gap-24 lg:py-28">
+      <div data-reveal-stagger className="container-studio grid gap-12 py-24 lg:grid-cols-[.8fr,1.2fr] lg:gap-24 lg:py-28">
         <div>
           <p className="eyebrow">мастерская</p>
           <h2 className="display-title mt-6 max-w-[8ch]">{title || 'Здесь создаётся качество'}</h2>

@@ -1,7 +1,7 @@
 export function CustomMadeSection({ title, description }: { title?: string | null; description?: string | null }) {
   return (
     <section className="border-b border-ink/10 bg-surface">
-      <div className="container-studio grid gap-12 py-24 lg:grid-cols-[.8fr,1fr] lg:gap-24 lg:py-28">
+      <div data-reveal-stagger className="container-studio grid gap-12 py-24 lg:grid-cols-[.8fr,1fr] lg:gap-24 lg:py-28">
         <div>
           <p className="eyebrow">индивидуальное производство</p>
           <h2 className="display-title mt-6 max-w-[10ch]">{title || 'Под ваше пространство'}</h2>
