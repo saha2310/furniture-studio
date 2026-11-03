@@ -27,7 +27,7 @@ export function GeneralSettingsForm({ settings }: { settings: SiteSettings | nul
     <form action={formAction} className="flex flex-col gap-5 rounded border border-stone/70 p-6">
       <h2 className="text-lg">Основные</h2>
       <Input name="company_name" label="Название компании" defaultValue={settings?.company_name ?? ''} />
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <Input name="phone" label="Телефон (основной)" defaultValue={settings?.phone ?? ''} />
           <p className="mt-1.5 text-xs text-espresso">Для футера и карточки в поиске. Номера для страницы «Контакты» добавляются в разделе «Способы связи».</p>

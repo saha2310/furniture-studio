@@ -27,7 +27,7 @@ function NewMenuItem() {
     <p className="eyebrow">добавить</p>
     <h3 className="mt-1 text-lg text-ink">Новый пункт меню</h3>
     <p className="mt-2 text-xs leading-5 text-ink/50">Пункты можно добавлять, скрывать, переименовывать и менять их порядок. Они автоматически используются в публичной шапке.</p>
-    <div className="mt-5 grid gap-4 lg:grid-cols-[1fr,1fr,120px]"><MenuFields /></div>
+    <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-[1fr,1fr,120px]"><MenuFields /></div>
     <label className="mt-4 flex items-center gap-2 text-xs text-ink/65"><input name="is_visible" type="checkbox" defaultChecked className="h-4 w-4" /> Показывать на сайте</label>
     <div className="mt-5 flex items-center gap-3"><Submit label="Добавить пункт" />{state && <FormStatus state={{ status: state.success ? 'success' : 'error', message: state.message }} />}</div>
   </form>;
@@ -37,7 +37,7 @@ function MenuRow({ item }: { item: Item }) {
   const [editing, setEditing] = useState(false);
   const [state, formAction] = useFormState(updateMenuItem.bind(null, item.id), null);
   if (editing) return <form action={formAction} className="border border-ink/15 bg-canvas p-5 sm:p-6">
-    <div className="grid gap-4 lg:grid-cols-[1fr,1fr,120px]"><MenuFields item={item} /></div>
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr,1fr,120px]"><MenuFields item={item} /></div>
     <label className="mt-4 flex items-center gap-2 text-xs text-ink/65"><input name="is_visible" type="checkbox" defaultChecked={item.is_visible} className="h-4 w-4" /> Показывать на сайте</label>
     <div className="mt-5 flex flex-wrap items-center gap-3"><Submit label="Сохранить изменения" /><button type="button" onClick={() => setEditing(false)} className="border border-ink/15 px-4 py-3 text-[10px] uppercase tracking-[0.12em] text-ink/70 hover:text-ink">Отмена</button>{state && <FormStatus state={{ status: state.success ? 'success' : 'error', message: state.message }} />}</div>
   </form>;

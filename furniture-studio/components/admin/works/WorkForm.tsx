@@ -637,7 +637,7 @@ export function WorkForm({ categories, initialData, action, submitLabel, redirec
           пронумерованных секций классической CMS-формы. Все поля — это
           обычные input/textarea, попадающие в ту же FormData, что и раньше;
           изменилась только раскладка и стилизация. */}
-      <div className="grid gap-x-12 gap-y-10 lg:grid-cols-[minmax(0,1.45fr)_minmax(320px,1.05fr)]">
+      <div className="grid grid-cols-1 gap-x-12 gap-y-10 lg:grid-cols-[minmax(0,1.45fr)_minmax(320px,1.05fr)]">
         <div className="order-1 min-w-0">
           <p className="eyebrow mb-3">фотографии</p>
           {heroImage && (
@@ -762,7 +762,7 @@ export function WorkForm({ categories, initialData, action, submitLabel, redirec
               <div key={index} className="group grid grid-cols-[.75fr,1.25fr,28px] items-center gap-3 border-b border-ink/10 py-2.5 sm:grid-cols-[.75fr,1.25fr,28px]">
                 <input name="spec_key" placeholder="Размеры" value={spec.key} onChange={(e) => setSpecs((items) => items.map((item, i) => i === index ? { ...item, key: e.target.value } : item))} className="min-w-0 border-0 bg-transparent p-0 text-[10px] uppercase tracking-[0.14em] text-stone outline-none placeholder:text-stone/50 focus:text-ink" aria-label={`Название характеристики ${index + 1}`} />
                 <input name="spec_value" placeholder="220 × 95 × 85 см" value={spec.value} onChange={(e) => setSpecs((items) => items.map((item, i) => i === index ? { ...item, value: e.target.value } : item))} className="min-w-0 border-0 bg-transparent p-0 text-sm text-ink outline-none placeholder:text-ink/25" aria-label={`Значение характеристики ${index + 1}`} />
-                <button type="button" onClick={() => setSpecs((items) => items.filter((_, i) => i !== index))} className="justify-self-end text-ink/25 opacity-0 transition group-hover:opacity-100 hover:text-danger" aria-label={`Удалить характеристику ${index + 1}`}>×</button>
+                <button type="button" onClick={() => setSpecs((items) => items.filter((_, i) => i !== index))} className="flex h-8 w-8 items-center justify-center justify-self-end text-lg text-ink/40 transition [@media(hover:hover)]:opacity-0 focus-visible:opacity-100 group-hover:opacity-100 hover:text-danger" aria-label={`Удалить характеристику ${index + 1}`}>×</button>
               </div>
             ))}
           </dl>
@@ -775,7 +775,7 @@ export function WorkForm({ categories, initialData, action, submitLabel, redirec
       </div>
 
       <div className="mt-8 border-t border-ink/10 pt-4">{state && <FormStatus state={{ status: state.success ? 'success' : 'error', message: state.message }} />}{imagesUploading && <p className="mt-2 text-xs text-ink/45">Дождитесь загрузки фотографий, затем нажмите «Сохранить».</p>}{!imagesUploading && dirty && !state?.success && <p className="mt-2 text-xs text-ink/35">Есть несохранённые изменения.</p>}</div>
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-ink/10 bg-canvas/90 px-4 py-3 backdrop-blur"><div className="mx-auto flex max-w-[1440px] items-center justify-between gap-4"><p className="hidden truncate text-xs text-ink/45 sm:block">{imagesUploading ? 'Загружаем фотографии…' : imagesFailed ? 'Не все фото загрузились — повторите или удалите их' : dirty ? 'Изменения ещё не сохранены' : 'Все изменения сохранены'}</p><div className="ml-auto flex items-center gap-2"><Link href="/admin/works" className="h-11 px-4 text-[9px] uppercase tracking-[0.14em] text-ink/50 hover:text-ink">Отмена</Link><SaveButton label={submitLabel} busy={imagesUploading} failed={imagesFailed} /></div></div></div>
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-ink/10 bg-canvas/90 px-4 py-3 backdrop-blur"><div className="mx-auto flex max-w-[1440px] items-center justify-between gap-4"><p className="hidden truncate text-xs text-ink/45 sm:block">{imagesUploading ? 'Загружаем фотографии…' : imagesFailed ? 'Не все фото загрузились — повторите или удалите их' : dirty ? 'Изменения ещё не сохранены' : 'Все изменения сохранены'}</p><div className="ml-auto flex items-center gap-2"><Link href="/admin/works" className="inline-flex h-11 items-center px-4 text-[9px] uppercase tracking-[0.14em] text-ink/50 hover:text-ink">Отмена</Link><SaveButton label={submitLabel} busy={imagesUploading} failed={imagesFailed} /></div></div></div>
 
       {confirmSaveOpen && (
         <div

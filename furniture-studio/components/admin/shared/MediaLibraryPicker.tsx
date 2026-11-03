@@ -103,7 +103,7 @@ export function MediaLibraryPicker({ bucket, onSelect, onClose }: MediaLibraryPi
                   type="button"
                   onClick={() => requestDelete(asset)}
                   aria-label={`Удалить ${asset.path}`}
-                  className="absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-sm text-white/80 opacity-0 backdrop-blur transition-opacity hover:text-white group-hover:opacity-100"
+                  className="absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-sm text-white/80 backdrop-blur transition-opacity [@media(hover:hover)]:opacity-0 focus-visible:opacity-100 hover:text-white group-hover:opacity-100"
                 >
                   ×
                 </button>

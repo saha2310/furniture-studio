@@ -53,13 +53,13 @@ function CoverMenuButton({
   }, [open]);
 
   return (
-    <div ref={rootRef} className="relative">
+    <div ref={rootRef} className="relative min-w-0">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="dialog"
-        className={`w-full bg-surface px-2 py-3 text-[9px] uppercase tracking-[0.11em] transition hover:text-ink ${isCover ? 'text-ink' : 'text-ink/70'}`}
+        className={`w-full bg-surface min-w-0 px-1 py-3 text-[9px] uppercase tracking-[0.11em] transition hover:text-ink ${isCover ? 'text-ink' : 'text-ink/70'}`}
       >
         Обложка{hasCardOverride ? ' •' : ''}
       </button>
@@ -432,7 +432,7 @@ export function WorkImageEditor({
                 )}
               </div>
               <div className="grid grid-cols-3 gap-px bg-ink/10">
-                <button type="button" onClick={() => removeExisting(image.id)} className="bg-surface px-2 py-3 text-[9px] uppercase tracking-[0.11em] text-danger transition hover:bg-danger/10">Удалить</button>
+                <button type="button" onClick={() => removeExisting(image.id)} className="min-w-0 bg-surface px-1 py-3 text-[9px] uppercase tracking-[0.11em] text-danger transition hover:bg-danger/10">Удалить</button>
                 <CoverMenuButton
                   isCover={selectedCover === image.id}
                   onSetCover={() => setSelectedCover(image.id)}
@@ -442,7 +442,7 @@ export function WorkImageEditor({
                   }}
                   hasCardOverride={!!catalogOverrides[image.id]}
                 />
-                <button type="button" onClick={() => startExistingEdit(image)} className="bg-surface px-2 py-3 text-[9px] uppercase tracking-[0.11em] text-ink/70 hover:text-ink">Редактировать</button>
+                <button type="button" onClick={() => startExistingEdit(image)} className="min-w-0 bg-surface px-1 py-3 text-[9px] uppercase tracking-[0.11em] text-ink/70 hover:text-ink">Изменить</button>
               </div>
             </div>
           );
@@ -463,9 +463,9 @@ export function WorkImageEditor({
               )}
             </div>
             <div className="grid grid-cols-3 gap-px bg-ink/10">
-              <button type="button" onClick={() => removeNew(image.id)} className="bg-surface px-2 py-3 text-[9px] uppercase tracking-[0.11em] text-danger transition hover:bg-danger/10">Удалить</button>
-              <button type="button" onClick={() => setSelectedCover(image.id)} className={`bg-surface px-2 py-3 text-[9px] uppercase tracking-[0.11em] hover:text-ink ${selectedCover === image.id ? 'text-ink' : 'text-ink/70'}`}>Обложка</button>
-              <button type="button" onClick={() => startNewEdit(image)} className="bg-surface px-2 py-3 text-[9px] uppercase tracking-[0.11em] text-ink/70 hover:text-ink">Редактировать</button>
+              <button type="button" onClick={() => removeNew(image.id)} className="min-w-0 bg-surface px-1 py-3 text-[9px] uppercase tracking-[0.11em] text-danger transition hover:bg-danger/10">Удалить</button>
+              <button type="button" onClick={() => setSelectedCover(image.id)} className={`min-w-0 bg-surface px-1 py-3 text-[9px] uppercase tracking-[0.11em] hover:text-ink ${selectedCover === image.id ? 'text-ink' : 'text-ink/70'}`}>Обложка</button>
+              <button type="button" onClick={() => startNewEdit(image)} className="min-w-0 bg-surface px-1 py-3 text-[9px] uppercase tracking-[0.11em] text-ink/70 hover:text-ink">Изменить</button>
             </div>
           </div>
         ))}

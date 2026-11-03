@@ -114,7 +114,7 @@ export function ImageSetField({
         {slots.map((slot, index) => (
           <div key={slot.kind === 'new' ? slot.id : slot.path} className="group relative aspect-[4/3] overflow-hidden border border-ink/10 bg-black">
             <img src={urlOf(slot)} alt="" className="h-full w-full object-cover" />
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/55 opacity-0 transition-opacity group-hover:opacity-100">
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/40 transition-opacity [@media(hover:hover)]:opacity-0 focus-within:opacity-100 group-hover:opacity-100 [@media(hover:hover)]:bg-black/55">
               <div className="flex gap-1">
                 <button type="button" onClick={() => move(index, -1)} disabled={index === 0} className="flex h-7 w-7 items-center justify-center rounded-full bg-white/15 text-xs text-white disabled:opacity-30">←</button>
                 <button type="button" onClick={() => move(index, 1)} disabled={index === slots.length - 1} className="flex h-7 w-7 items-center justify-center rounded-full bg-white/15 text-xs text-white disabled:opacity-30">→</button>

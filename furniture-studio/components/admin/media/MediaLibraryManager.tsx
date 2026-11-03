@@ -196,7 +196,7 @@ export function MediaLibraryManager() {
                     <p className="mt-0.5 text-[9px] text-ink/35">{formatBytes(asset.sizeBytes)}</p>
                   </div>
                   {!asset.used && (
-                    <div className="absolute bottom-full right-1.5 mb-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+                    <div className="absolute bottom-full right-1.5 mb-1.5 transition-opacity [@media(hover:hover)]:opacity-0 focus-within:opacity-100 group-hover:opacity-100">
                       <ConfirmDialog
                         triggerLabel="Удалить"
                         title="Удалить изображение навсегда?"
