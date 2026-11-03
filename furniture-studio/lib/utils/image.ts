@@ -1,10 +1,20 @@
 const BUCKET_WORKS = 'works';
 const BUCKET_SITE = 'site';
 
+/**
+ * Префикс, под которым Supabase доступен через НАШ домен (см. rewrites в
+ * next.config.mjs). Браузер обращается к /supabase/... на сайте, а сервер
+ * сайта сам пересылает запрос в *.supabase.co. Нужно, потому что у части
+ * пользователей (в т.ч. администратора) *.supabase.co напрямую не открывается
+ * без VPN, а наш домен — открывается.
+ */
+export const SUPABASE_PROXY_PATH = '/supabase';
+
 function publicUrl(bucket: string, path: string): string {
-  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  if (!base) return '';
-  return `${base}/storage/v1/object/public/${bucket}/${path}`;
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return '';
+  // Относительный URL: и <img> в админке, и next/image на сайте грузят файл
+  // через наш домен. Абсолютные ссылки для OG/favicon достраивает metadataBase.
+  return `${SUPABASE_PROXY_PATH}/storage/v1/object/public/${bucket}/${path}`;
 }
 
 /** Публичный URL фотографии работы из storage_path (works bucket). */

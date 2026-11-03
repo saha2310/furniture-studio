@@ -58,6 +58,13 @@ const securityHeaders = [
 const nextConfig = {
   // Не светим "X-Powered-By: Next.js" в ответах.
   poweredByHeader: false,
+  // Supabase через наш домен: /supabase/* → https://<project>.supabase.co/*.
+  // Браузер (картинки и загрузка файлов в админке) обращается только к сайту,
+  // сервер сайта сам пересылает запрос в Supabase. См. lib/utils/image.ts и
+  // lib/supabase/browser.ts.
+  async rewrites() {
+    return supabaseOrigin ? [{ source: '/supabase/:path*', destination: `${supabaseOrigin}/:path*` }] : [];
+  },
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }];
   },
