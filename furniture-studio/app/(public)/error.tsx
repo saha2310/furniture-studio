@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { ErrorScene } from '@/components/errors/ErrorScene';
 
 export default function PublicError({
   error,
@@ -14,18 +15,16 @@ export default function PublicError({
   }, [error]);
 
   return (
-    <div className="container-studio flex flex-col items-start py-24">
-      <h1 className="text-2xl">Не получилось загрузить страницу</h1>
-      <p className="mt-3 max-w-prose text-espresso">
-        Возможно, временные проблемы с сервером. Попробуйте обновить страницу через минуту.
-      </p>
-      <button
-        type="button"
-        onClick={reset}
-        className="mt-6 inline-flex items-center justify-center rounded bg-ink px-6 py-3 text-[15px] text-canvas hover:bg-espresso"
-      >
-        Попробовать снова
-      </button>
-    </div>
+    <ErrorScene
+      side="site"
+      code="500"
+      title="У нас что-то сломалось"
+      text="Это не ваша ошибка — сбой на стороне сайта. Мы уже чиним. Попробуйте обновить страницу через минуту."
+      action={
+        <button type="button" onClick={reset} className="error-scene-button">
+          Попробовать снова
+        </button>
+      }
+    />
   );
 }

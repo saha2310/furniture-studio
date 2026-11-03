@@ -1547,3 +1547,136 @@ select:focus-visible,
     .route-loader-cat { left: calc(50% - 58px); }
   }
 }
+
+/* ── Буквы по очереди (components/motion/SplitText.tsx) ─────────────────── */
+@keyframes letter-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.45em) rotate(6deg);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.letter-in {
+  display: inline-block;
+  animation: letter-in 700ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ── Страница ошибки: кот в каске с молотком (components/errors/*) ──────── */
+.error-scene ::selection {
+  background: rgba(245 197 66 / 0.55);
+}
+
+.error-scene-button {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #141413;
+  border-radius: 9999px;
+  background: #141413;
+  padding: 0 1.4rem;
+  font-size: 14px;
+  color: #fff;
+  transition: transform 200ms ease, background-color 200ms ease, color 200ms ease;
+}
+
+.error-scene-button:hover {
+  transform: translateY(-2px);
+}
+
+.error-scene-button--ghost {
+  background: transparent;
+  color: #141413;
+}
+
+.error-scene-button--ghost:hover {
+  background: #141413;
+  color: #fff;
+}
+
+.hc-arm {
+  transform-box: view-box;
+  transform-origin: 148px 166px;
+  animation: hc-hammer 1.15s cubic-bezier(0.55, 0, 0.45, 1) infinite;
+}
+
+@keyframes hc-hammer {
+  0% { transform: rotate(-58deg); }
+  50% { transform: rotate(-64deg); }
+  66% { transform: rotate(0deg); }
+  71% { transform: rotate(-6deg); }
+  76% { transform: rotate(0deg); }
+  100% { transform: rotate(-58deg); }
+}
+
+.hc-sparks {
+  transform-box: view-box;
+  transform-origin: 253px 196px;
+  opacity: 0;
+  animation: hc-sparks 1.15s ease-out infinite;
+}
+
+@keyframes hc-sparks {
+  0%, 64% { opacity: 0; transform: scale(0.5); }
+  67% { opacity: 1; transform: scale(0.8); }
+  82% { opacity: 0; transform: scale(1.25); }
+  100% { opacity: 0; }
+}
+
+.hc-plank {
+  animation: hc-plank 1.15s ease-out infinite;
+}
+
+@keyframes hc-plank {
+  0%, 65% { transform: translateY(0); }
+  68% { transform: translateY(2px); }
+  76%, 100% { transform: translateY(0); }
+}
+
+.hc-nail {
+  animation: hc-nail 1.15s ease-out infinite;
+}
+
+@keyframes hc-nail {
+  0%, 65% { transform: translateY(0); }
+  68% { transform: translateY(3px); }
+  80%, 100% { transform: translateY(0); }
+}
+
+.hc-head {
+  transform-box: view-box;
+  transform-origin: 120px 160px;
+  animation: hc-head 1.15s ease-in-out infinite;
+}
+
+@keyframes hc-head {
+  0%, 60% { transform: rotate(0deg); }
+  68% { transform: rotate(3deg) translateY(1px); }
+  85%, 100% { transform: rotate(0deg); }
+}
+
+.hc-tail {
+  transform-box: view-box;
+  transform-origin: 66px 222px;
+  animation: hc-tail 2.3s ease-in-out infinite alternate;
+}
+
+@keyframes hc-tail {
+  from { transform: rotate(-6deg); }
+  to { transform: rotate(10deg); }
+}
+
+.hc-eyes ellipse {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: hc-blink 4.2s infinite;
+}
+
+@keyframes hc-blink {
+  0%, 92%, 100% { transform: scaleY(1); }
+  95% { transform: scaleY(0.1); }
+}
