@@ -44,7 +44,7 @@ export default async function ContactsPage() {
   return (
     <div className="pt-[82px]">
       <section className="grid min-h-0 lg:min-h-[calc(100vh-82px)] lg:grid-cols-2">
-        <div className="relative min-h-[380px] overflow-hidden border-b border-ink/10 lg:min-h-[620px] lg:border-b-0 lg:border-r">
+        <div className="relative min-h-[300px] overflow-hidden border-b border-ink/10 lg:min-h-[620px] lg:border-b-0 lg:border-r">
           <div className="contact-photo-in absolute inset-0">
             <ContactParallaxPhoto>
               {galleryImages.length > 0 ? (
@@ -58,19 +58,19 @@ export default async function ContactsPage() {
             <div className="absolute inset-0 bg-black/50" />
           </div>
 
-          <div className="light-image-content relative z-10 flex h-full flex-col justify-end p-7 pb-12 sm:p-10 lg:p-14">
+          <div className="light-image-content relative z-10 flex h-full flex-col justify-end p-6 pb-8 pt-10 sm:p-10 lg:p-14">
             <p className="contact-fade-up eyebrow text-ink/50" style={{ animationDelay: '80ms' }}>контакты</p>
-            <h1 className="contact-fade-up mt-5 max-w-[9ch] text-[clamp(3rem,6.2vw,5.6rem)] leading-[.94] tracking-[-.04em] text-ink" style={{ animationDelay: '180ms' }}>
+            <h1 className="contact-fade-up mt-4 max-w-[9ch] text-[clamp(2.4rem,6.2vw,5.6rem)] lg:mt-5 leading-[.94] tracking-[-.04em] text-ink" style={{ animationDelay: '180ms' }}>
               Есть пространство.
               <br />
               Придумаем мебель.
             </h1>
-            <span className="contact-fade-up mt-8 h-px w-12 bg-ink/40" style={{ animationDelay: '340ms' }} />
-            <p className="contact-fade-up mt-6 max-w-[36ch] text-sm leading-6 text-ink/65" style={{ animationDelay: '400ms' }}>
+            <span className="contact-fade-up mt-6 h-px w-12 lg:mt-8 bg-ink/40" style={{ animationDelay: '340ms' }} />
+            <p className="contact-fade-up mt-4 max-w-[36ch] text-sm lg:mt-6 leading-6 text-ink/65" style={{ animationDelay: '400ms' }}>
               Расскажите, что нужно сделать. Мы обсудим размеры, форму, материалы и предложим решение. Работаем в Брянске и области.
             </p>
 
-            <div className="contact-fade-up mt-10 flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-ink/40" style={{ animationDelay: '520ms' }}>
+            <div className="contact-fade-up mt-10 hidden items-center gap-2 lg:flex text-[11px] uppercase tracking-[0.18em] text-ink/40" style={{ animationDelay: '520ms' }}>
               <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M10 4v11M5 11l5 5 5-5" />
               </svg>
@@ -79,9 +79,9 @@ export default async function ContactsPage() {
           </div>
         </div>
 
-        <div className="flex items-center bg-surface px-7 py-14 sm:px-10 lg:px-14">
+        <div className="flex items-center bg-surface px-6 pb-28 pt-8 sm:px-10 sm:py-14 lg:px-14">
           <div className="w-full max-w-[560px]">
-            <div className="mb-10">
+            <div className="mb-6 lg:mb-10">
               <p className="contact-fade-up eyebrow" style={{ animationDelay: '560ms' }}>связаться с нами</p>
               <p className="contact-fade-up mt-4 text-sm leading-6 text-ink/60" style={{ animationDelay: '620ms' }}>
                 Выберите удобный способ связи — ответим лично, без форм и заявок.
