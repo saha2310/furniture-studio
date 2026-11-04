@@ -1,11 +1,11 @@
 import Link from 'next/link';
-import { HammerCat } from './HammerCat';
+import { PhoneSmashCat } from './PhoneSmashCat';
 import { SplitText } from '@/components/motion/SplitText';
 
 /**
- * Полноэкранная белая страница ошибки с котом-ремонтником.
+ * Полноэкранная тёмная страница ошибки: кот-строитель бьёт телефон в дата-центре.
  * side="user" — ошибка в адресе/ссылке (404), side="site" — сбой на нашей стороне.
- * Цвета заданы жёстко (белая страница в любой теме сайта).
+ * Цвета заданы жёстко (одинаково в любой теме сайта), в тон фону образца.
  */
 export function ErrorScene({
   side,
@@ -22,11 +22,11 @@ export function ErrorScene({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="error-scene fixed inset-0 z-[200] overflow-y-auto bg-white text-[#141413]">
-      <div className="mx-auto flex min-h-full max-w-xl flex-col items-center justify-center px-6 py-14 text-center">
-        <HammerCat className="w-full max-w-[340px]" />
+    <div className="error-scene fixed inset-0 z-[200] overflow-y-auto bg-[#04070D] text-[#E6EDF7]">
+      <div className="mx-auto flex min-h-full max-w-3xl flex-col items-center justify-center px-4 py-10 sm:px-6 sm:py-14 text-center">
+        <PhoneSmashCat className="hero-in w-full" />
 
-        <p className="hero-in mt-6 inline-flex items-center gap-2 rounded-full border border-[#141413]/15 px-3 py-1 text-[11px] uppercase tracking-[0.16em] text-[#141413]/60" style={{ animationDelay: '150ms' }}>
+        <p className="hero-in mt-8 inline-flex items-center gap-2 rounded-full border border-[#2A3D5C] px-3 py-1 text-[11px] uppercase tracking-[0.16em] text-[#9FB3CC]" style={{ animationDelay: '150ms' }}>
           <span className={`h-1.5 w-1.5 rounded-full ${side === 'user' ? 'bg-amber-500' : 'bg-red-500'}`} />
           {side === 'user' ? 'Ошибка со стороны пользователя' : 'Ошибка со стороны сайта'} · {code}
         </p>
@@ -34,7 +34,7 @@ export function ErrorScene({
         <h1 className="mt-5 text-[clamp(2rem,6vw,3.2rem)] leading-[1.05] tracking-[-0.03em]">
           <SplitText text={title} delay={250} step={30} />
         </h1>
-        <p className="hero-in mt-4 max-w-md text-[15px] leading-7 text-[#141413]/65" style={{ animationDelay: '600ms' }}>
+        <p className="hero-in mt-4 max-w-md text-[15px] leading-7 text-[#9FB3CC]" style={{ animationDelay: '600ms' }}>
           {text}
         </p>
 

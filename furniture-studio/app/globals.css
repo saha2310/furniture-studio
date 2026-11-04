@@ -1561,7 +1561,7 @@ select:focus-visible,
 
 /* ── Страница ошибки: кот в каске с молотком (components/errors/*) ──────── */
 .error-scene ::selection {
-  background: rgba(245 197 66 / 0.55);
+  background: rgba(77 208 225 / 0.35);
 }
 
 .error-scene-button {
@@ -1569,111 +1569,259 @@ select:focus-visible,
   min-height: 2.75rem;
   align-items: center;
   justify-content: center;
-  border: 1px solid #141413;
+  border: 1px solid #e6edf7;
   border-radius: 9999px;
-  background: #141413;
+  background: #e6edf7;
   padding: 0 1.4rem;
   font-size: 14px;
-  color: #fff;
-  transition: transform 200ms ease, background-color 200ms ease, color 200ms ease;
+  color: #04070d;
+  transition: transform 200ms ease, background-color 200ms ease, color 200ms ease, border-color 200ms ease;
 }
 
 .error-scene-button:hover {
   transform: translateY(-2px);
+  background: #ffffff;
 }
 
 .error-scene-button--ghost {
+  border-color: #2a3d5c;
   background: transparent;
-  color: #141413;
+  color: #e6edf7;
 }
 
 .error-scene-button--ghost:hover {
-  background: #141413;
-  color: #fff;
+  border-color: #4dd0e1;
+  background: rgba(77 208 225 / 0.08);
+  color: #ffffff;
 }
 
-.hc-arm {
-  transform-box: view-box;
-  transform-origin: 148px 166px;
-  animation: hc-hammer 1.15s cubic-bezier(0.55, 0, 0.45, 1) infinite;
-}
+/* ── Кот-строитель бьёт молотком телефон (components/errors/PhoneSmashCat.tsx).
+   Перенесено из присланного образца; все классы с префиксом psc-. ─────── */
+.psc-stage {
+    position: relative;
+    width: 100%;
+    /* Картинка уменьшается на невысоких экранах, чтобы текст и кнопки
+       помещались без прокрутки (420px — место под текст и кнопки). */
+    max-width: min(680px, max(280px, calc((100svh - 420px) * 4 / 3)));
+    aspect-ratio: 4 / 3;
+    border-radius: 18px;
+    overflow: hidden;
+    background: #04070D;
+    box-shadow:
+      0 0 0 1px #16233B,
+      0 30px 80px rgba(0, 0, 0, .75);
+  }
 
-@keyframes hc-hammer {
-  0% { transform: rotate(-58deg); }
-  50% { transform: rotate(-64deg); }
-  66% { transform: rotate(0deg); }
-  71% { transform: rotate(-6deg); }
-  76% { transform: rotate(0deg); }
-  100% { transform: rotate(-58deg); }
-}
+  .psc-layer {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
 
-.hc-sparks {
-  transform-box: view-box;
-  transform-origin: 253px 196px;
-  opacity: 0;
-  animation: hc-sparks 1.15s ease-out infinite;
-}
+  /* Кот живёт в своей системе координат 400×400.
+     Поэтому его transform-origin остаются прежними. */
+  .psc-cat-layer {
+    inset: auto;
+    left: 27%;
+    top: 18%;
+    width: 46%;
+    height: 61.3333%;
+    overflow: visible;
+  }
 
-@keyframes hc-sparks {
-  0%, 64% { opacity: 0; transform: scale(0.5); }
-  67% { opacity: 1; transform: scale(0.8); }
-  82% { opacity: 0; transform: scale(1.25); }
-  100% { opacity: 0; }
-}
+  /* ---------- Анимации кота ---------- */
 
-.hc-plank {
-  animation: hc-plank 1.15s ease-out infinite;
-}
+  .led-green  { animation: psc-blink 1.2s infinite alternate; }
+  .led-red    { animation: psc-blink 0.8s infinite alternate 0.3s; }
+  .led-yellow { animation: psc-blink 1.5s infinite alternate 0.7s; }
 
-@keyframes hc-plank {
-  0%, 65% { transform: translateY(0); }
-  68% { transform: translateY(2px); }
-  76%, 100% { transform: translateY(0); }
-}
+  @keyframes psc-blink {
+    0%   { opacity: 0.25; }
+    100% { opacity: 1; }
+  }
 
-.hc-nail {
-  animation: hc-nail 1.15s ease-out infinite;
-}
+  .psc-tail-group {
+    transform-origin: 180px 340px;
+    animation: psc-tailSwish 0.9s infinite ease-in-out alternate;
+  }
 
-@keyframes hc-nail {
-  0%, 65% { transform: translateY(0); }
-  68% { transform: translateY(3px); }
-  80%, 100% { transform: translateY(0); }
-}
+  .psc-body-group {
+    transform-origin: 200px 370px;
+    animation: psc-bodySquash 1.4s infinite;
+  }
 
-.hc-head {
-  transform-box: view-box;
-  transform-origin: 120px 160px;
-  animation: hc-head 1.15s ease-in-out infinite;
-}
+  .psc-head-group {
+    transform-origin: 200px 240px;
+    animation: psc-headBob 1.4s infinite;
+  }
 
-@keyframes hc-head {
-  0%, 60% { transform: rotate(0deg); }
-  68% { transform: rotate(3deg) translateY(1px); }
-  85%, 100% { transform: rotate(0deg); }
-}
+  .psc-arm-foreground {
+    transform-origin: 200px 370px;
+    animation: psc-bodySquash 1.4s infinite;
+  }
 
-.hc-tail {
-  transform-box: view-box;
-  transform-origin: 66px 222px;
-  animation: hc-tail 2.3s ease-in-out infinite alternate;
-}
+  .psc-left-arm  { animation: psc-leftArmMove  1.4s infinite; }
+  .psc-right-arm { animation: psc-rightArmMove 1.4s infinite; }
 
-@keyframes hc-tail {
-  from { transform: rotate(-6deg); }
-  to { transform: rotate(10deg); }
-}
+  .psc-arm-rig {
+    transform-origin: 200px 280px;
+    animation: psc-swing 1.4s infinite;
+  }
 
-.hc-eyes ellipse {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: hc-blink 4.2s infinite;
-}
+  .psc-phone-reaction {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: psc-phoneHit 1.4s infinite;
+  }
 
-@keyframes hc-blink {
-  0%, 92%, 100% { transform: scaleY(1); }
-  95% { transform: scaleY(0.1); }
-}
+  .psc-phone-screen { animation: psc-screenBlink 1.4s infinite; }
+
+  .psc-phone-text {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: psc-textBlink 1.4s infinite;
+    font-family: 'Arial Black', sans-serif;
+    font-size: 18px;
+    font-weight: 900;
+    fill: #FFFFFF;
+    stroke: #1A1A1A;
+    stroke-width: 4px;
+    paint-order: stroke fill;
+    text-anchor: middle;
+    dominant-baseline: middle;
+  }
+
+  .psc-smoke-puff-1,
+  .psc-smoke-puff-2 {
+    transform-box: fill-box;
+    transform-origin: center;
+    opacity: 0;
+  }
+  .psc-smoke-puff-1 { animation: psc-smokeRise1 1.4s infinite; }
+  .psc-smoke-puff-2 { animation: psc-smokeRise2 1.4s infinite; }
+
+  .psc-impact-sparks {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: psc-sparks 1.4s infinite;
+  }
+
+  @keyframes psc-tailSwish {
+    0%   { transform: rotate(-18deg); }
+    50%  { transform: rotate(15deg); }
+    100% { transform: rotate(-18deg); }
+  }
+
+  @keyframes psc-swing {
+    0%   { transform: rotate(0deg);   animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1); }
+    15%  { transform: rotate(-65deg); animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1); }
+    25%  { transform: rotate(-65deg); animation-timing-function: cubic-bezier(0.6, 0, 1, 0.5); }
+    45%  { transform: rotate(85deg);  animation-timing-function: cubic-bezier(0, 0, 0.4, 1); }
+    55%  { transform: rotate(70deg);  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1); }
+    80%  { transform: rotate(0deg);   animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1); }
+    100% { transform: rotate(0deg); }
+  }
+
+  @keyframes psc-leftArmMove {
+    0%   { d: path("M 145 285 Q 170 300 220 286"); animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1); }
+    15%  { d: path("M 145 285 Q 180 280 214 264"); animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1); }
+    25%  { d: path("M 145 285 Q 180 280 214 264"); animation-timing-function: cubic-bezier(0.6, 0, 1, 0.5); }
+    45%  { d: path("M 145 285 Q 170 320 196 300"); animation-timing-function: cubic-bezier(0, 0, 0.4, 1); }
+    55%  { d: path("M 145 285 Q 175 315 201 301"); animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1); }
+    80%  { d: path("M 145 285 Q 170 300 220 286"); animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1); }
+    100% { d: path("M 145 285 Q 170 300 220 286"); }
+  }
+
+  @keyframes psc-rightArmMove {
+    0%   { d: path("M 255 285 Q 240 270 235 260"); animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1); }
+    15%  { d: path("M 255 285 Q 240 260 197 240"); animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1); }
+    25%  { d: path("M 255 285 Q 240 260 197 240"); animation-timing-function: cubic-bezier(0.6, 0, 1, 0.5); }
+    45%  { d: path("M 255 285 Q 240 310 223 313"); animation-timing-function: cubic-bezier(0, 0, 0.4, 1); }
+    55%  { d: path("M 255 285 Q 240 295 231 306"); animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1); }
+    80%  { d: path("M 255 285 Q 240 270 235 260"); animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1); }
+    100% { d: path("M 255 285 Q 240 270 235 260"); }
+  }
+
+  @keyframes psc-bodySquash {
+    0%   { transform: scale(1, 1) translateY(0);          animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1); }
+    15%  { transform: scale(0.98, 1.02) translateY(-2px); animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1); }
+    25%  { transform: scale(0.98, 1.02) translateY(-2px); animation-timing-function: cubic-bezier(0.6, 0, 1, 0.5); }
+    45%  { transform: scale(1.06, 0.94) translateY(8px);  animation-timing-function: cubic-bezier(0, 0, 0.4, 1); }
+    55%  { transform: scale(1, 1) translateY(0);          animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1); }
+    80%  { transform: scale(1, 1) translateY(0);          animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1); }
+    100% { transform: scale(1, 1) translateY(0); }
+  }
+
+  @keyframes psc-headBob {
+    0%   { transform: translateY(0) rotate(0deg);    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1); }
+    15%  { transform: translateY(-2px) rotate(-3deg); animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1); }
+    25%  { transform: translateY(-2px) rotate(-3deg); animation-timing-function: cubic-bezier(0.6, 0, 1, 0.5); }
+    45%  { transform: translateY(8px) rotate(5deg);   animation-timing-function: cubic-bezier(0, 0, 0.4, 1); }
+    55%  { transform: translateY(0) rotate(0deg);     animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1); }
+    80%  { transform: translateY(0) rotate(0deg);     animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1); }
+    100% { transform: translateY(0) rotate(0deg); }
+  }
+
+  @keyframes psc-phoneHit {
+    0%, 44%  { transform: scale(1, 1) translate(0, 0); }
+    45%      { transform: scale(1.15, 0.8) translate(0, 0); }
+    47%      { transform: scale(0.95, 1.05) translate(-3px, 2px); }
+    50%      { transform: scale(1.05, 0.95) translate(3px, -2px); }
+    53%      { transform: scale(0.98, 1.02) translate(-2px, 1px); }
+    56%      { transform: scale(1.02, 0.98) translate(2px, -1px); }
+    60%, 100%{ transform: scale(1, 1) translate(0, 0); }
+  }
+
+  @keyframes psc-screenBlink {
+    0%, 44%  { fill: #E0F7FA; }
+    45%, 50% { fill: #FF5252; }
+    52%, 57% { fill: #E0F7FA; }
+    59%, 85% { fill: #FF5252; }
+    86%, 100%{ fill: #E0F7FA; }
+  }
+
+  @keyframes psc-textBlink {
+    0%, 44%  { opacity: 0; transform: scale(0.8); }
+    45%      { opacity: 1; transform: scale(1.2); }
+    48%      { opacity: 1; transform: scale(1); }
+    51%      { opacity: 0; }
+    53%      { opacity: 1; }
+    55%, 85% { opacity: 1; }
+    86%, 100%{ opacity: 0; }
+  }
+
+  @keyframes psc-smokeRise1 {
+    0%, 44%  { opacity: 0; transform: translateY(10px) scale(0.2); }
+    45%      { opacity: 1; transform: translateY(0)     scale(1); }
+    65%      { opacity: 0.8; transform: translateY(-35px) scale(1.3) translateX(-10px); }
+    85%, 100%{ opacity: 0;   transform: translateY(-60px) scale(1.6) translateX(-25px); }
+  }
+
+  @keyframes psc-smokeRise2 {
+    0%, 47%  { opacity: 0; transform: translateY(10px) scale(0.2); }
+    48%      { opacity: 1; transform: translateY(0)    scale(0.8); }
+    70%      { opacity: 0.6; transform: translateY(-30px) scale(1.1) translateX(15px); }
+    90%, 100%{ opacity: 0;   transform: translateY(-50px) scale(1.4) translateX(30px); }
+  }
+
+  @keyframes psc-sparks {
+    0%, 43%  { opacity: 0; transform: scale(0.5); animation-timing-function: ease-out; }
+    45%      { opacity: 1; transform: scale(1);   animation-timing-function: ease-in; }
+    55%      { opacity: 0; transform: scale(1.5); animation-timing-function: ease-out; }
+    100%     { opacity: 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .psc-body-group, .psc-head-group, .psc-arm-foreground, .psc-left-arm, .psc-right-arm, .psc-arm-rig,
+    .psc-phone-reaction, .psc-impact-sparks, .psc-phone-screen, .psc-phone-text, .psc-tail-group,
+    .psc-smoke-puff-1, .psc-smoke-puff-2,
+    .led-green, .led-red, .led-yellow {
+      animation: none !important;
+    }
+  }
 
 /* Зелёные чёрточки по бокам подписи под логотипом на первом экране. */
 .hero-accent-line {
