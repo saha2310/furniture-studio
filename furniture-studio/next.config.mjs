@@ -66,7 +66,10 @@ const nextConfig = {
     return supabaseOrigin ? [{ source: '/supabase/:path*', destination: `${supabaseOrigin}/:path*` }] : [];
   },
   async headers() {
-    return [{ source: '/:path*', headers: securityHeaders }];
+    // На Vercel-копии дополнительно просим поисковики не индексировать
+    // страницы (основной сайт — на своём сервере, см. app/robots.ts).
+    const noindex = process.env.VERCEL === '1' ? [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }] : [];
+    return [{ source: '/:path*', headers: [...securityHeaders, ...noindex] }];
   },
   images: {
     remotePatterns: [

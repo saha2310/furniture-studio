@@ -36,6 +36,12 @@ export async function generateMetadata(): Promise<Metadata> {
       'Диваны и кресла на заказ. Индивидуальное изготовление мягкой мебели под пространство клиента.',
     icons: settings?.favicon_path ? { icon: siteAssetUrl(settings.favicon_path) } : undefined,
     openGraph: settings?.og_image_path ? { images: [{ url: siteAssetUrl(settings.og_image_path) }] } : undefined,
+    // Код подтверждения из Яндекс Вебмастера (метатег yandex-verification).
+    // Google Search Console (метатег google-site-verification).
+    verification: {
+      ...(process.env.YANDEX_VERIFICATION ? { yandex: process.env.YANDEX_VERIFICATION } : {}),
+      ...(process.env.GOOGLE_SITE_VERIFICATION ? { google: process.env.GOOGLE_SITE_VERIFICATION } : {}),
+    },
   };
 }
 
