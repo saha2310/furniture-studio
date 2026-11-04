@@ -1,9 +1,9 @@
 import Link from 'next/link';
-import { PhoneSmashCat } from './PhoneSmashCat';
+import { ErrorCats } from './ErrorCats';
 import { SplitText } from '@/components/motion/SplitText';
 
 /**
- * Полноэкранная тёмная страница ошибки: кот-строитель бьёт телефон в дата-центре.
+ * Полноэкранная тёмная страница ошибки с карточками котов (можно переключать).
  * side="user" — ошибка в адресе/ссылке (404), side="site" — сбой на нашей стороне.
  * Цвета заданы жёстко (одинаково в любой теме сайта), в тон фону образца.
  */
@@ -24,9 +24,9 @@ export function ErrorScene({
   return (
     <div className="error-scene fixed inset-0 z-[200] overflow-y-auto bg-[#04070D] text-[#E6EDF7]">
       <div className="mx-auto flex min-h-full max-w-3xl flex-col items-center justify-center px-4 py-10 sm:px-6 sm:py-14 text-center">
-        <PhoneSmashCat className="hero-in w-full" />
+        <ErrorCats className="hero-in" />
 
-        <p className="hero-in mt-8 inline-flex items-center gap-2 rounded-full border border-[#2A3D5C] px-3 py-1 text-[11px] uppercase tracking-[0.16em] text-[#9FB3CC]" style={{ animationDelay: '150ms' }}>
+        <p className="hero-in mt-6 inline-flex items-center gap-2 rounded-full border border-[#2A3D5C] px-3 py-1 text-[11px] uppercase tracking-[0.16em] text-[#9FB3CC]" style={{ animationDelay: '150ms' }}>
           <span className={`h-1.5 w-1.5 rounded-full ${side === 'user' ? 'bg-amber-500' : 'bg-red-500'}`} />
           {side === 'user' ? 'Ошибка со стороны пользователя' : 'Ошибка со стороны сайта'} · {code}
         </p>

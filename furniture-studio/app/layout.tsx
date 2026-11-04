@@ -49,7 +49,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const businessSchema = buildBusinessSchema(siteUrl);
 
   return (
-    <html lang="ru" className={`${fraunces.variable} ${manrope.variable}`} data-theme="dark">
+    <html lang="ru" className={`${fraunces.variable} ${manrope.variable}`} data-theme="dark" suppressHydrationWarning>
       <head>
         {/*
           JSON-LD карточки компании для Google/Яндекс (локальный пак,

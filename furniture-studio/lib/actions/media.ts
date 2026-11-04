@@ -165,7 +165,13 @@ export async function listMediaAssetsWithUsage(): Promise<{ assets: MediaAssetWi
 }
 
 export async function getMediaAssetUsage(bucket: MediaBucket, path: string): Promise<{ used: boolean; locations: string[] }> {
-  await requireUser().catch(() => null);
+  // Только для администратора: без входа возвращаем пустой ответ
+  // (раньше ошибка проверки глоталась и функция работала дальше).
+  try {
+    await requireUser();
+  } catch {
+    return { used: false, locations: [] };
+  }
   const supabase = await createClient();
   const locations: string[] = [];
 

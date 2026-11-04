@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useFavorites } from '@/components/favorites/FavoritesProvider';
 import { NavigationIcon, type NavigationIconName } from '@/components/icons/NavigationIcons';
+import { WORK_PREVIEW_CLOSE_EVENT } from '@/lib/utils/work-preview';
 
 const ITEMS: Array<{ href: string; label: string; icon: NavigationIconName }> = [
   { href: '/', label: 'Главная', icon: 'home' },
@@ -43,7 +44,15 @@ export function MobileBottomNav() {
             key={item.href}
             href={item.href}
             aria-current={active ? 'page' : undefined}
-            onClick={spawnNavRipple}
+            onClick={(event) => {
+              spawnNavRipple(event);
+              // Открыт быстрый предпросмотр работы — кнопка «Работы» просто
+              // закрывает его, без перехода и перезагрузки страницы.
+              if (item.href === '/works' && document.documentElement.dataset.workPreview === 'open') {
+                event.preventDefault();
+                window.dispatchEvent(new Event(WORK_PREVIEW_CLOSE_EVENT));
+              }
+            }}
             className={`mobile-bottom-nav-item ${active ? 'is-active' : ''}`}
           >
             <span className="mobile-bottom-nav-icon-wrap">

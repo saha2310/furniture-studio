@@ -354,7 +354,7 @@ select:focus-visible,
 
 /* Любой текст внутри блока поверх фотографии остаётся светлым в light mode.
    Не меняем саму фотографию и не добавляем цветную/белую дымку. */
-[data-theme='light'] .light-image-content :where(h1, h2, h3, h4, h5, h6, p, span, a, div) {
+[data-theme='light'] .light-image-content :where(h1, h2, h3, h4, h5, h6, p, span, a, div, li, svg) {
   color: rgb(var(--image-ink)) !important;
 }
 
@@ -1595,14 +1595,61 @@ select:focus-visible,
   color: #ffffff;
 }
 
-/* ── Кот-строитель бьёт молотком телефон (components/errors/PhoneSmashCat.tsx).
-   Перенесено из присланного образца; все классы с префиксом psc-. ─────── */
-.psc-stage {
+/* ── Карточки котов на страницах ошибок (components/errors/ErrorCats.tsx).
+   Перенесены из присланных образцов: psc-* — кот-строитель бьёт телефон,
+   pck-* — кот-повар режет киви. ───────────────────────────────────────── */
+.error-cat-frame {
+  display: grid;
+  width: 100%;
+  /* Уменьшается на невысоких экранах, чтобы текст и кнопки помещались
+     без прокрутки (480px — место под переключатель, текст и кнопки). */
+  max-width: min(680px, max(280px, calc((100svh - 480px) * 4 / 3)));
+}
+
+/* Обе карточки лежат в одной ячейке сетки, видна только выбранная. */
+.error-cat-frame > * {
+  grid-area: 1 / 1;
+  transition: opacity 450ms ease, transform 450ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.error-cat-frame > [aria-hidden='true'] {
+  opacity: 0;
+  transform: scale(0.97);
+  pointer-events: none;
+}
+
+.error-cat-tab {
+  display: inline-flex;
+  min-height: 2.25rem;
+  align-items: center;
+  gap: 0.45rem;
+  border: 1px solid #2a3d5c;
+  border-radius: 9999px;
+  padding: 0 0.95rem;
+  font-size: 13px;
+  color: #9fb3cc;
+  transition: border-color 200ms ease, color 200ms ease, background-color 200ms ease;
+}
+
+.error-cat-tab:hover {
+  border-color: #4dd0e1;
+  color: #ffffff;
+}
+
+.error-cat-tab[aria-pressed='true'] {
+  border-color: #e6edf7;
+  background: #e6edf7;
+  color: #04070d;
+}
+
+.error-scene {
+  transition: background-color 450ms ease;
+}
+
+.psc-stage-root {
     position: relative;
     width: 100%;
-    /* Картинка уменьшается на невысоких экранах, чтобы текст и кнопки
-       помещались без прокрутки (420px — место под текст и кнопки). */
-    max-width: min(680px, max(280px, calc((100svh - 420px) * 4 / 3)));
+    max-width: none;
     aspect-ratio: 4 / 3;
     border-radius: 18px;
     overflow: hidden;
@@ -1822,6 +1869,249 @@ select:focus-visible,
       animation: none !important;
     }
   }
+
+.pck-stage-root {
+    position: relative;
+    width: 100%;
+    max-width: none;
+    aspect-ratio: 4 / 3;
+    border-radius: 18px;
+    overflow: hidden;
+    background: #050302;
+    box-shadow:
+      0 0 0 1px #2A1A0C,
+      0 30px 80px rgba(0, 0, 0, .8);
+  }
+
+  .pck-layer {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+
+  .pck-cat-layer {
+    inset: auto;
+    left: 25%;
+    top: 15%;
+    width: 50%;
+    height: 66.6667%;
+    overflow: visible;
+  }
+
+  /* ============================================================
+     АНИМАЦИИ
+     ============================================================ */
+
+  /* ---------- Хвост ---------- */
+  .pck-tail-base { animation: pck-tailBaseWave 1.2s ease-in-out infinite both; }
+  .pck-tail-mid  { animation: pck-tailMidWave  1.2s ease-in-out 0.08s infinite both; }
+  .pck-tail-tip  { animation: pck-tailTipWave  1.2s ease-in-out 0.16s infinite both; }
+
+  @keyframes pck-tailBaseWave {
+    0%, 100% { transform: translate(180px, 340px)     rotate(-8deg)  translate(-180px, -340px); }
+    50%      { transform: translate(180px, 340px)     rotate(8deg)   translate(-180px, -340px); }
+  }
+  @keyframes pck-tailMidWave {
+    0%, 100% { transform: translate(114.7px, 324.9px) rotate(-9deg)  translate(-114.7px, -324.9px); }
+    50%      { transform: translate(114.7px, 324.9px) rotate(9deg)   translate(-114.7px, -324.9px); }
+  }
+  @keyframes pck-tailTipWave {
+    0%, 100% { transform: translate(72.7px, 262.7px)  rotate(-12deg) translate(-72.7px, -262.7px); }
+    50%      { transform: translate(72.7px, 262.7px)  rotate(12deg)  translate(-72.7px, -262.7px); }
+  }
+
+  /* ---------- Тело: лёгкий «толчок» на ударе ---------- */
+  .pck-body-group {
+    transform-origin: 200px 340px;
+    animation: pck-bodyChop 1.2s infinite;
+  }
+  @keyframes pck-bodyChop {
+    0%, 43%  { transform: translateY(0); }
+    47%      { transform: translateY(3px); }
+    55%,100% { transform: translateY(0); }
+  }
+
+  /* ---------- Голова ---------- */
+  .pck-head-group {
+    transform-origin: 200px 250px;
+    animation: pck-headChop 1.2s infinite;
+  }
+  @keyframes pck-headChop {
+    0%, 43%  { transform: translateY(0) rotate(0deg); }
+    47%      { transform: translateY(2px) rotate(1.5deg); }
+    55%,100% { transform: translateY(0) rotate(0deg); }
+  }
+
+  /* ---------- Правая рука (путь тянется за лапой) ---------- */
+  .pck-right-arm-anim {
+    animation: pck-chopArm 1.2s infinite;
+  }
+  @keyframes pck-chopArm {
+    0%, 40%  {
+      d: path("M 250 270 Q 228 252 205 246");
+      animation-timing-function: cubic-bezier(0.6, 0, 1, 0.5);
+    }
+    46%, 54% {
+      d: path("M 250 270 Q 228 285 203 290");
+      animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    100% {
+      d: path("M 250 270 Q 228 252 205 246");
+    }
+  }
+
+  /* ---------- Правая лапа + НОЖ ---------- */
+  .pck-right-paw-knife {
+    animation: pck-chopKnife 1.2s infinite;
+  }
+  @keyframes pck-chopKnife {
+    0%, 40%  {
+      transform: translateY(-45px);
+      animation-timing-function: cubic-bezier(0.6, 0, 1, 0.5);
+    }
+    46%, 54% {
+      transform: translateY(0);
+      animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    100% {
+      transform: translateY(-45px);
+    }
+  }
+
+  /* ---------- Киви: сплющивается ---------- */
+  .pck-kiwi-group {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: pck-kiwiSquash 1.2s infinite;
+  }
+  @keyframes pck-kiwiSquash {
+    0%, 43%  { transform: scale(1, 1); }
+    46%      { transform: scale(1.12, 0.82); }
+    50%      { transform: scale(0.96, 1.04); }
+    56%,100% { transform: scale(1, 1); }
+  }
+
+  /* ---------- Левая рука ---------- */
+  .pck-left-arm-group {
+    animation: pck-leftArmIdle 2.2s ease-in-out infinite;
+  }
+  @keyframes pck-leftArmIdle {
+    0%, 100% { transform: translate(0, 0); }
+    50%      { transform: translate(1px, -1px); }
+  }
+
+  /* ---------- Вспышка на срезе ---------- */
+  .pck-chop-flash {
+    animation: pck-chopFlash 1.2s infinite;
+  }
+  @keyframes pck-chopFlash {
+    0%, 43%  { opacity: 0; }
+    45%      { opacity: 0.9; }
+    50%,100% { opacity: 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pck-tail-base, .pck-tail-mid, .pck-tail-tip,
+    .pck-body-group, .pck-head-group,
+    .pck-right-arm-anim, .pck-right-paw-knife,
+    .pck-kiwi-group, .pck-left-arm-group, .pck-chop-flash {
+      animation: none !important;
+    }
+  }
+
+/* ── Быстрый предпросмотр работы (components/works/WorkPreviewDrawer.tsx) ──
+   ПК: панель справа. Телефон: «шторка» снизу, над нижним меню (z 85 < 90),
+   чтобы кнопкой «Работы» можно было закрыть предпросмотр. */
+.work-preview-backdrop {
+  animation: work-preview-fade-in 240ms ease-out backwards;
+}
+
+.work-preview-panel {
+  inset: 0 0 0 auto;
+  width: 100%;
+  max-width: 30rem;
+  border-left: 1px solid rgb(var(--color-ink) / 0.1);
+  /* backwards, а не both: после появления анимация не держит transform,
+     иначе свайп (inline transform) не смог бы двигать панель. */
+  animation: preview-drawer-in 280ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+.work-preview.is-closing .work-preview-backdrop {
+  animation: work-preview-fade-out 260ms ease-in forwards;
+}
+
+.work-preview.is-closing .work-preview-panel {
+  animation: work-preview-drawer-out 260ms ease-in forwards;
+}
+
+/* Закрыли свайпом — панель уже уезжает сама (inline transform). */
+.work-preview.is-closing .work-preview-panel[data-swiped] {
+  animation: none;
+}
+
+.work-preview-handle {
+  display: flex;
+  justify-content: center;
+  padding: 10px 0 2px;
+  touch-action: none;
+}
+
+.work-preview-handle span {
+  width: 44px;
+  height: 5px;
+  border-radius: 9999px;
+  background: rgb(var(--color-ink) / 0.25);
+}
+
+@media (max-width: 767px) {
+  .work-preview-panel {
+    inset: auto 0 0 0;
+    max-width: none;
+    height: calc(92svh - env(safe-area-inset-top));
+    border-left: 0;
+    border-top: 1px solid rgb(var(--color-ink) / 0.1);
+    border-radius: 22px 22px 0 0;
+    overflow: hidden;
+    animation: work-preview-sheet-in 320ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  }
+
+  .work-preview.is-closing .work-preview-panel {
+    animation: work-preview-sheet-out 260ms ease-in forwards;
+  }
+
+  /* Кнопка «Открыть полностью» не должна прятаться под нижним меню. */
+  .work-preview-footer {
+    padding-bottom: calc(92px + env(safe-area-inset-bottom));
+  }
+}
+
+@keyframes work-preview-sheet-in {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+@keyframes work-preview-sheet-out {
+  from { transform: translateY(0); }
+  to { transform: translateY(100%); }
+}
+
+@keyframes work-preview-drawer-out {
+  from { opacity: 1; transform: translateX(0); }
+  to { opacity: 0; transform: translateX(32px); }
+}
+
+@keyframes work-preview-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes work-preview-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
 
 /* Зелёные чёрточки по бокам подписи под логотипом на первом экране. */
 .hero-accent-line {
