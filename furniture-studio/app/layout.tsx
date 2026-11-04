@@ -34,7 +34,17 @@ export async function generateMetadata(): Promise<Metadata> {
     description:
       settings?.seo_default_description ||
       'Диваны и кресла на заказ. Индивидуальное изготовление мягкой мебели под пространство клиента.',
-    icons: settings?.favicon_path ? { icon: siteAssetUrl(settings.favicon_path) } : undefined,
+    // Значок для вкладки и поисковиков. Яндекс берёт /favicon.ico и PNG,
+    // а формат WebP (в нём сохраняется загруженный в админке значок) не понимает —
+    // поэтому первыми идут статичные файлы из app/ (favicon.ico, icon.png).
+    icons: {
+      icon: [
+        { url: '/favicon.ico', sizes: 'any' },
+        { url: '/icon.png', type: 'image/png', sizes: '192x192' },
+        ...(settings?.favicon_path ? [{ url: siteAssetUrl(settings.favicon_path) }] : []),
+      ],
+      apple: [{ url: '/apple-icon.png', sizes: '180x180' }],
+    },
     openGraph: settings?.og_image_path ? { images: [{ url: siteAssetUrl(settings.og_image_path) }] } : undefined,
     // Код подтверждения из Яндекс Вебмастера (метатег yandex-verification).
     // Google Search Console (метатег google-site-verification).
