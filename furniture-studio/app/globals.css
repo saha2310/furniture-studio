@@ -1680,3 +1680,9 @@ select:focus-visible,
   0%, 92%, 100% { transform: scaleY(1); }
   95% { transform: scaleY(0.1); }
 }
+
+/* Зелёные чёрточки по бокам подписи под логотипом на первом экране. */
+.hero-accent-line {
+  background: #7cb342;
+  border-radius: 2px;
+}
