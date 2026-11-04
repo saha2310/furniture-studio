@@ -1,7 +1,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
-import { getSiteSettings } from '@/lib/queries/site';
-import { siteAssetUrl, workImageUrl } from '@/lib/utils/image';
+import { workImageUrl } from '@/lib/utils/image';
 import type { HeroContent } from '@/types/domain';
 
 const FALLBACK: HeroContent = {
@@ -27,7 +26,7 @@ const FEATURES = [
     ),
   },
   {
-    label: ['Индивидуальные', 'решения'],
+    label: ['Индивидуальное', 'решение'],
     icon: (
       <>
         <path d="M15.5 4.5 19.5 8.5 9 19H5v-4L15.5 4.5Z" />
@@ -47,10 +46,8 @@ const FEATURES = [
   },
 ];
 
-export async function Hero({ content }: { content?: HeroContent | null }) {
+export function Hero({ content }: { content?: HeroContent | null }) {
   const data = content ?? FALLBACK;
-  const settings = await getSiteSettings().catch(() => null);
-  const companyName = settings?.company_name?.trim() || '';
 
   // Первое слово заголовка — жирным, остальное — тонким, как в макете.
   const title = (data.title || FALLBACK.title).trim();
@@ -77,33 +74,17 @@ export async function Hero({ content }: { content?: HeroContent | null }) {
 
       <div className="light-image-content container-studio relative z-10 flex min-h-[780px] flex-col justify-center pb-24 pt-32 sm:min-h-[820px] lg:min-h-screen lg:pb-16 lg:pt-36">
         <div className="hero-brand-block w-full max-w-[460px]">
-          {(settings?.logo_path || companyName) && (
-            <div className="hero-in mb-9" style={{ animationDelay: '60ms' }}>
-              <div className="flex items-center gap-4">
-                {settings?.logo_path ? (
-                  <span className="relative h-16 w-20 shrink-0 sm:h-20 sm:w-24">
-                    <Image
-                      src={siteAssetUrl(settings.logo_path)}
-                      alt={companyName || 'Логотип мастерской'}
-                      fill
-                      sizes="96px"
-                      className="object-contain object-left"
-                    />
-                  </span>
-                ) : null}
-                {companyName ? (
-                  <span className="font-display text-[40px] font-bold leading-none tracking-[-0.02em] text-ink sm:text-[52px]">
-                    {companyName}
-                  </span>
-                ) : null}
-              </div>
-              <p className="mt-3 flex items-center gap-3 text-[10px] uppercase tracking-[0.32em] text-ink/80 sm:text-[11px]">
-                <span className="hero-accent-line h-[2px] w-7 shrink-0" />
-                мебель для вашего уюта
-                <span className="hero-accent-line h-[2px] w-7 shrink-0" />
-              </p>
-            </div>
-          )}
+          <div className="hero-in mb-9" style={{ animationDelay: '60ms' }}>
+            <Image
+              src="/images/kivium-logo.webp"
+              alt="Кивиум — мебель для вашего уюта"
+              width={1200}
+              height={413}
+              priority
+              sizes="(min-width: 640px) 440px, 85vw"
+              className="h-auto w-full max-w-[440px]"
+            />
+          </div>
 
           <h1 className="hero-in text-ink" style={{ animationDelay: '180ms' }}>
             <span className="block text-[64px] font-bold leading-[0.95] tracking-[-0.03em] sm:text-[84px]">{titleBold}</span>
