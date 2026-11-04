@@ -8,7 +8,7 @@ const FALLBACK: HeroContent = {
   description: 'Создаём мебель для вашего идеального дома',
   primaryCtaLabel: 'Обсудить проект',
   primaryCtaHref: '/contacts',
-  secondaryCtaLabel: 'Переходите на сайт и выбирайте свою мебель',
+  secondaryCtaLabel: 'Посмотреть работы',
   secondaryCtaHref: '/works',
   imagePath: null,
   imageOriginalPath: null,
@@ -72,9 +72,9 @@ export function Hero({ content }: { content?: HeroContent | null }) {
       <div className="absolute inset-0 bg-[rgb(var(--photo-mist)/0.45)]" />
       <div className="absolute inset-0 bg-[linear-gradient(to_right,rgb(var(--photo-mist)/0.8),rgb(var(--photo-mist)/0.3),rgb(var(--photo-mist)/0.15))]" />
 
-      <div className="light-image-content container-studio relative z-10 flex min-h-[780px] flex-col justify-center pb-24 pt-32 sm:min-h-[820px] lg:min-h-screen lg:pb-16 lg:pt-36">
-        <div className="hero-brand-block w-full max-w-[460px]">
-          <div className="hero-in mb-9" style={{ animationDelay: '60ms' }}>
+      <div className="light-image-content container-studio relative z-10 flex min-h-[780px] flex-col justify-center pb-24 pt-32 sm:min-h-[820px] lg:min-h-screen lg:justify-start lg:pb-12 lg:pt-[120px]">
+        <div className="hero-brand-block w-full max-w-[460px] lg:max-w-[540px]">
+          <div className="hero-in mb-9 lg:mb-6" style={{ animationDelay: '60ms' }}>
             <Image
               src="/images/kivium-logo.webp"
               alt="Кивиум — мебель для вашего уюта"
@@ -82,7 +82,7 @@ export function Hero({ content }: { content?: HeroContent | null }) {
               height={413}
               priority
               sizes="(min-width: 640px) 440px, 85vw"
-              className="h-auto w-full max-w-[440px]"
+              className="h-auto w-full max-w-[440px] lg:max-w-[400px]"
             />
           </div>
 
@@ -94,12 +94,12 @@ export function Hero({ content }: { content?: HeroContent | null }) {
           </h1>
 
           {data.description ? (
-            <p className="hero-in mt-6 max-w-[22rem] text-base leading-6 text-ink/80" style={{ animationDelay: '300ms' }}>
+            <p className="hero-in mt-6 max-w-[22rem] lg:mt-4 text-base leading-6 text-ink/80" style={{ animationDelay: '300ms' }}>
               {data.description}
             </p>
           ) : null}
 
-          <ul className="hero-in mt-8 grid grid-cols-3 text-center" style={{ animationDelay: '400ms' }}>
+          <ul className="hero-in mt-8 lg:mt-6 grid grid-cols-3 text-center" style={{ animationDelay: '400ms' }}>
             {FEATURES.map((f, i) => (
               <li key={f.label[0]} className={`flex flex-col items-center gap-2 px-2 ${i > 0 ? 'border-l border-ink/25' : ''}`}>
                 <svg viewBox="0 0 24 24" className="h-7 w-7 text-ink" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -112,18 +112,20 @@ export function Hero({ content }: { content?: HeroContent | null }) {
             ))}
           </ul>
 
-          <div className="hero-in mt-9 flex flex-col gap-4" style={{ animationDelay: '500ms' }}>
-            <Link
-              href={data.secondaryCtaHref}
-              className="hero-wide-button liquid-glass-on-image group flex items-center justify-between gap-4 rounded-full border border-ink/60 px-7 py-4 text-sm leading-5 text-ink transition-colors hover:border-ink"
-            >
-              <span className="flex-1 text-center">{data.secondaryCtaLabel}</span>
-              <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          {/* Две одинаковые кнопки: на телефоне друг под другом во всю ширину,
+              с планшета/ПК — в один ряд, одной ширины и высоты. */}
+          <div className="hero-in mt-8 flex flex-col gap-3 sm:flex-row lg:mt-7" style={{ animationDelay: '500ms' }}>
+            <Link href={data.secondaryCtaHref} className="hero-cta liquid-glass-on-image group flex h-14 w-full items-center justify-center gap-3 rounded-full border border-ink/60 px-6 text-center text-sm leading-5 text-ink transition-colors hover:border-ink sm:w-[260px]">
+              <span>{data.secondaryCtaLabel}</span>
+              <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="m9 5 7 7-7 7" />
               </svg>
             </Link>
-            <Link href={data.primaryCtaHref} className="reference-button liquid-glass-on-image self-start">
-              {data.primaryCtaLabel}
+            <Link href={data.primaryCtaHref} className="hero-cta liquid-glass-on-image group flex h-14 w-full items-center justify-center gap-3 rounded-full border border-ink/60 px-6 text-center text-sm leading-5 text-ink transition-colors hover:border-ink sm:w-[260px]">
+              <span>{data.primaryCtaLabel}</span>
+              <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="m9 5 7 7-7 7" />
+              </svg>
             </Link>
           </div>
         </div>
